@@ -268,7 +268,14 @@ async def seed_dataset(session: AsyncSession, rng: random.Random, now: datetime,
     """Компании из датасета кейса (выборка СКБ) и правила v2, откалиброванные по нему. Повторный вызов ничего не делает."""
     if not DATASET_FILE.exists():
         return 0
-    if (await session.execute(select(func.count()).select_from(Organization).where(Organization.dataset_uid.is_not(None)))).scalar_one():
+    existing = list((await session.execute(select(Organization.id).where(Organization.dataset_uid.is_not(None)))).scalars())
+    if existing:
+        # Прошлая догрузка могла оборваться после создания компаний: дописываем им историю, если её нет
+        has_comms = (await session.execute(select(func.count()).select_from(Communication).where(Communication.org_id.in_(existing)))).scalar_one()
+        if history and not has_comms:
+            session.expunge_all()
+            await _history(session, rng, now, set(), only=set(existing))
+            await session.commit()
         return 0
     data = json.loads(DATASET_FILE.read_text(encoding="utf-8"))
     if not (await session.execute(select(RuleSet).where(RuleSet.version == 2))).scalar_one_or_none():
@@ -283,10 +290,12 @@ async def seed_dataset(session: AsyncSession, rng: random.Random, now: datetime,
         if c["group"]:
             g = groups.get(c["group"])
             if g is None:
-                g = CompanyGroup(name=f"Группа {c['group'].split('_')[1]} (датасет)",
-                                 ab_variant=AbVariant.test if len(groups) % 2 == 0 else AbVariant.control)
-                session.add(g)
-                await session.flush()
+                gname = f"Группа {c['group'].split('_')[1]} (датасет)"
+                g = (await session.execute(select(CompanyGroup).where(CompanyGroup.name == gname))).scalar_one_or_none()
+                if g is None:
+                    g = CompanyGroup(name=gname, ab_variant=AbVariant.test if len(groups) % 2 == 0 else AbVariant.control)
+                    session.add(g)
+                    await session.flush()
                 groups[c["group"]] = g
         seasonal = c["industry"] in ("agro", "retail") and rng.random() < 0.7
         base = max(20.0, c["revenue_mln"] / 12)
@@ -381,6 +390,8 @@ async def _history(session: AsyncSession, rng: random.Random, now: datetime, dem
     converted = list((await session.execute(select(Communication).where(Communication.converted_at.is_not(None)))).scalars())
     statuses = [AppStatus.approved] * 9 + [AppStatus.declined] * 3 + [AppStatus.in_review] * 3 + [AppStatus.submitted] * 2 + [AppStatus.cancelled] * 2 + [AppStatus.needs_info]
     org_by_id = {o.id: o for o in orgs}
+    # При догрузке (only) заявки создаём только для новых компаний — старые уже есть
+    converted = [c for c in converted if c.org_id in org_by_id]
     for c in converted:
         st = rng.choice(statuses)
         a = Application(number="—", org_id=c.org_id, product_code=c.product_code, amount_rub=rng.choice([5, 10, 15, 20, 30, 50, 80]) * 1_000_000,
