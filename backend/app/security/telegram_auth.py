@@ -31,7 +31,7 @@ def validate_init_data(init_data: str, bot_token: str, *, max_age_seconds: int, 
     received_hash = pairs.pop("hash", None)
     if not received_hash:
         raise InitDataError("Нет подписи hash")
-    pairs.pop("signature", None)  # Ed25519-подпись для третьих сторон; для бота достаточно HMAC
+    # Поле signature (Ed25519 для третьих сторон) не удаляем: Telegram включает его в строку для HMAC
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
     secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
     expected = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
