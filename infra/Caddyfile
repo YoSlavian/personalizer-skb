@@ -1,0 +1,6 @@
+# Автоматический HTTPS (Let's Encrypt) для Mini App и вебхука Telegram.
+# Требуется домен с A-записью на сервер и открытые порты 80/443.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8000
+}

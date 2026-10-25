@@ -1,0 +1,22 @@
+# Секреты
+.env
+upload_for_github/
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+backend/data/
+
+# Node
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Инструменты
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

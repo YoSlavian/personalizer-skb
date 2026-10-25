@@ -1,0 +1,39 @@
+# Render Blueprint: веб-сервис (API + бот + Mini App) и PostgreSQL на бесплатном тарифе.
+# Render → New → Blueprint → репозиторий с этим файлом. Пошагово: docs/DEPLOY_RENDER.md
+services:
+  - type: web
+    name: personalizer-skb
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      # Демо-входы под синтетическими персонами — для показа жюри
+      - key: DEMO_MODE
+        value: "true"
+      # Синтетические данные заливаются один раз, если база пустая
+      - key: SEED_DEMO
+        value: "true"
+      # Бесплатный сервис засыпает без запросов: webhook будит его, polling бы остановился
+      - key: TELEGRAM_MODE
+        value: webhook
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: personalizer-db
+          property: connectionString
+
+databases:
+  - name: personalizer-db
+    plan: free
+    region: frankfurt
+    databaseName: personalizer
+    user: personalizer

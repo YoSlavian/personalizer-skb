@@ -1,0 +1,190 @@
+@import "tailwindcss";
+
+/* Шрифт Styrene — из брендбука кейс-школы Альфа-Будущее (подмножество: латиница, кириллица, ₽) */
+@font-face { font-family: "Styrene B"; src: url("./assets/fonts/styrene-b-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Styrene B"; src: url("./assets/fonts/styrene-b-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Styrene B"; src: url("./assets/fonts/styrene-b-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Styrene A"; src: url("./assets/fonts/styrene-a-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+/* Цвета берутся из темы Telegram (--tg-theme-* выставляет telegram-web-app.js), фирменные — акценты */
+:root {
+  --brand: #ef3124;
+  --brand-press: #d32a1e;
+  --lime: #a9f000;
+  --violet: #6f2aff;
+  --blue: #2b72fe;
+  --pink: #ff33ca;
+  --ink: #0b0b0b;
+  --success: #1aa260;
+  --warning: #f2a516;
+
+  --bg: var(--tg-theme-secondary-bg-color, #f1f1f4);
+  --surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #ffffff));
+  --text: var(--tg-theme-text-color, #0b0b0b);
+  --hint: var(--tg-theme-hint-color, #85858d);
+  --link: var(--tg-theme-link-color, #2b72fe);
+  --separator: var(--tg-theme-section-separator-color, rgba(11, 11, 11, 0.08));
+  --danger: var(--tg-theme-destructive-text-color, #e5372b);
+  --subtle: color-mix(in srgb, var(--text) 6%, transparent);
+  --subtle-2: color-mix(in srgb, var(--text) 10%, transparent);
+  --brand-soft: color-mix(in srgb, var(--brand) 11%, transparent);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: var(--tg-theme-secondary-bg-color, #0e0e11);
+    --surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #1b1b20));
+    --text: var(--tg-theme-text-color, #f3f3f6);
+    --hint: var(--tg-theme-hint-color, #8d8d96);
+    --separator: var(--tg-theme-section-separator-color, rgba(255, 255, 255, 0.08));
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: var(--tg-theme-secondary-bg-color, #0e0e11);
+  --surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #1b1b20));
+  --text: var(--tg-theme-text-color, #f3f3f6);
+  --hint: var(--tg-theme-hint-color, #8d8d96);
+  --separator: var(--tg-theme-section-separator-color, rgba(255, 255, 255, 0.08));
+  --shadow: none;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Styrene B", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Styrene A", "Styrene B", ui-sans-serif, system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-hint: var(--hint);
+  --color-link: var(--link);
+  --color-sep: var(--separator);
+  --color-danger: var(--danger);
+  --color-subtle: var(--subtle);
+  --color-subtle-2: var(--subtle-2);
+  --color-brand: var(--brand);
+  --color-brand-press: var(--brand-press);
+  --color-brand-soft: var(--brand-soft);
+  --color-lime: var(--lime);
+  --color-violet: var(--violet);
+  --color-blue: var(--blue);
+  --color-pink: var(--pink);
+  --color-ink: var(--ink);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+body {
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+  font-size: 15px;
+  line-height: 1.4;
+}
+#root {
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+}
+button,
+a {
+  touch-action: manipulation;
+}
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+::selection {
+  background: var(--brand-soft);
+}
+
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tg-content-safe-area-inset-bottom, 0px));
+}
+.pt-safe {
+  padding-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
+}
+.card {
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+.animate-fade-up { animation: fade-up 0.22s ease-out both; }
+.animate-sheet { animation: sheet-up 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.animate-fade { animation: fade-in 0.18s ease-out both; }
+.skeleton {
+  background: var(--subtle) linear-gradient(90deg, transparent, var(--subtle), transparent) no-repeat;
+  background-size: 200px 100%;
+  animation: shimmer 1.2s infinite linear;
+  border-radius: 10px;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--subtle-2);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  margin-top: -10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brand);
+  border: 3px solid var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+input[type="range"]::-moz-range-track { height: 4px; border-radius: 4px; background: var(--subtle-2); }
+input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--brand); border: 3px solid var(--surface); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
