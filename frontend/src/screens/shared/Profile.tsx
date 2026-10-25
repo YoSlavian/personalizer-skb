@@ -155,7 +155,7 @@ export function ProfileScreen() {
       <Section title="О приложении">
         <List>
           <Row left={<Info className="size-5 text-hint" />} title="Персонализатор СКБ 1.0" subtitle="MVP · команда 13 · Rizz Banking" />
-          <Row left={<ShieldCheck className="size-5 text-hint" />} title="Демо-данные" subtitle="Компании и суммы демонстрационные. Роль храним как должность, без ФИО." />
+          <Row left={<ShieldCheck className="size-5 text-hint" />} title="Данные" subtitle="Синтетические датасеты кейса и демо-профили. Роль храним как должность, без ФИО." />
         </List>
       </Section>
 
