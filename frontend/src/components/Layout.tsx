@@ -24,15 +24,16 @@ export const TABS: Record<Role, Tab[]> = {
     { to: "/applications", label: "Заявки", icon: FileText },
     { to: "/profile", label: "Профиль", icon: UserRound },
   ],
+  // Симулятор — первый экран: это главное, что показывает решение
   analyst: [
-    { to: "/", label: "Пилот", icon: BarChart3 },
-    { to: "/simulator", label: "Симулятор", icon: SlidersHorizontal },
+    { to: "/", label: "Симулятор", icon: SlidersHorizontal },
+    { to: "/pilot", label: "Пилот A/B", icon: BarChart3 },
     { to: "/clients", label: "Клиенты", icon: Users },
     { to: "/profile", label: "Профиль", icon: UserRound },
   ],
   admin: [
-    { to: "/", label: "Пилот", icon: BarChart3 },
-    { to: "/simulator", label: "Симулятор", icon: SlidersHorizontal },
+    { to: "/", label: "Симулятор", icon: SlidersHorizontal },
+    { to: "/pilot", label: "Пилот A/B", icon: BarChart3 },
     { to: "/clients", label: "Клиенты", icon: Users },
     { to: "/profile", label: "Профиль", icon: UserRound },
   ],

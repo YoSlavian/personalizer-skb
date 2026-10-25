@@ -2,6 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Search, Users } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { Hint } from "../../components/Hint";
 import { BellButton, Screen } from "../../components/Layout";
 import { Button, Chips, EmptyState, ErrorState, inputCls, List, ListSkeleton, Row, Tag } from "../../components/ui";
 import { get, qs } from "../../lib/api";
@@ -25,6 +26,11 @@ export function Clients() {
 
   return (
     <Screen title="Клиенты" subtitle={list.data ? `${list.data.pages[0].total} компаний` : " "} right={<BellButton />}>
+      <Hint id="clients" steps={[
+        "Здесь все компании базы, в том числе из датасетов кейса. Фильтры сверху — по сегментам.",
+        "Откройте компанию — увидите её профиль и решение системы.",
+        "Кнопка «Что если… (открыть в симуляторе)» позволяет поменять признаки этой компании и посмотреть «что если».",
+      ]} />
       <div className="mt-4 space-y-3">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-hint" />

@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router";
+import { Hint } from "../../components/Hint";
 import { Screen } from "../../components/Layout";
 import { Banner, Button, Card, Chips, cx, ErrorState, Field, Section, Segmented, Skeleton, Spinner, Toggle } from "../../components/ui";
 import { get, post } from "../../lib/api";
@@ -52,7 +53,12 @@ export function Simulator() {
   const groupKey = profile.group?.name === GROUPS.div.name ? "div" : "agro";
 
   return (
-    <Screen title="Симулятор" subtitle="Меняем профиль клиента — меняется предложение, текст, канал и частота">
+    <Screen title="Симулятор" subtitle="Выберите компанию — система покажет, что ей предложить и почему">
+      <Hint id="simulator" steps={[
+        "Нажмите на компанию A, B, C или D — сразу откроется результат.",
+        "В «Результате» видно продукт, текст, кому, канал и частоту, а ниже — почему выбрано именно это.",
+        "Хотите проверить «что если» — вернитесь в «Профиль» и поменяйте любой признак: результат пересчитается.",
+      ]} />
       <div className="sticky top-0 z-20 -mx-4 mt-3 bg-bg/95 px-4 pb-2 pt-2 backdrop-blur">
         <Card className="flex items-center gap-3 px-4 py-3" onClick={() => setTab("result")}>
           <div className="min-w-0 flex-1 text-[14px] leading-snug">
@@ -64,6 +70,9 @@ export function Simulator() {
         <div className="mt-2">
           <Segmented ariaLabel="Раздел" value={tab} onChange={setTab}
             options={[{ value: "profile", label: "Профиль" }, { value: "result", label: "Результат" }, ...(profile.structure === "group" ? [{ value: "group" as const, label: "Группа" }] : [])]} />
+          {profile.structure === "group" && tab !== "group" && (
+            <p className="mt-1 px-1 text-[12px] text-hint">Это группа компаний — во вкладке «Группа» видно, что предложить каждому юрлицу.</p>
+          )}
         </div>
       </div>
 
@@ -71,10 +80,11 @@ export function Simulator() {
 
       {tab === "profile" && (
         <div className="animate-fade">
-          <Section title="Клиент">
+          <Section title="Шаг 1. Выберите компанию">
             <div className="grid grid-cols-2 gap-2">
               {PRESETS.map((x) => (
-                <button key={x.id} type="button" onClick={() => { setPreset(x.id); setProfile(x.profile); tg.haptic("light"); }}
+                <button key={x.id} type="button"
+                  onClick={() => { setPreset(x.id); setProfile(x.profile); setTab("result"); window.scrollTo({ top: 0 }); tg.haptic("light"); }}
                   className={cx("card p-3 text-left transition-transform active:scale-[0.98]", preset === x.id && "ring-2 ring-brand")}>
                   <div className="text-[14px] font-medium">{x.id} · {x.title}</div>
                   <div className="mt-0.5 text-[12px] text-hint">{x.sub}</div>
@@ -83,6 +93,12 @@ export function Simulator() {
             </div>
           </Section>
 
+          <details className="group mt-5" open={!preset}>
+            <summary className="card flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[15px] font-medium">
+              Шаг 2 (по желанию). Поменять признаки вручную
+              <span className="text-[13px] text-link group-open:hidden">Открыть</span>
+              <span className="hidden text-[13px] text-link group-open:inline">Скрыть</span>
+            </summary>
           <Section title="Отрасль и сезон">
             <Card className="space-y-3 p-4">
               <Chips ariaLabel="Отрасль" value={profile.industry} onChange={(v) => set({ industry: v })}
@@ -157,6 +173,7 @@ export function Simulator() {
               <Toggle checked={profile.opt_out_all} onChange={(v) => set({ opt_out_all: v })} label="Отказ от всех маркетинговых коммуникаций" />
             </div>
           </Section>
+          </details>
           <Button className="mt-4" block variant="ghost" icon={<RotateCcw className="size-4" />} onClick={() => { setPreset("A"); setProfile(PRESETS[0].profile); }}>
             Сбросить к пресету A
           </Button>

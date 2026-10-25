@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellOff, Calculator, FileEdit, Info, Plus, UserRound } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useMe } from "../../auth/AuthProvider";
+import { Hint } from "../../components/Hint";
 import { Screen } from "../../components/Layout";
 import { OfferCard } from "../../components/Offer";
 import { useToast } from "../../components/toast";
@@ -48,6 +49,11 @@ export function ClientHome() {
 
   return (
     <Screen title={`Здравствуйте, ${firstName}`} subtitle={h ? `${h.organization.name} · ${h.role.name}` : " "}>
+      <Hint id="client" title="Вы смотрите глазами компании" steps={[
+        "Красная карточка — предложение, которое система подобрала именно этой компании.",
+        "«Почему я это вижу» объясняет выбор; «Не интересно» убирает предложение.",
+        "Нажмите кнопку на карточке, затем «Рассчитать». Если трижды пересчитать — появится подсказка для сомневающихся.",
+      ]} />
       {home.isLoading && (
         <div className="mt-4 space-y-3">
           <Skeleton className="h-[330px] rounded-[18px]" />

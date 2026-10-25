@@ -3,6 +3,7 @@ import { Megaphone, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useMe } from "../../auth/AuthProvider";
+import { Hint } from "../../components/Hint";
 import { BellButton, Screen } from "../../components/Layout";
 import { Banner, Card, Chips, ErrorState, IconBadge, Section, Skeleton, Stat } from "../../components/ui";
 import { get } from "../../lib/api";
@@ -42,6 +43,11 @@ export function AnalystHome() {
 
   return (
     <Screen title="Пилот персонализации" subtitle={`${me.user.full_name} · A/B: персонализация против AS IS`} right={<BellButton />}>
+      <Hint id="pilot" steps={[
+        "Компании поделены на две группы: «тест» получает персональные предложения, «контроль» — как сейчас (AS IS).",
+        "Красная цифра — конверсия в заявку у теста, ниже — у контроля и прирост в процентах.",
+        "Жёлтая плашка говорит, достаточно ли данных, чтобы доверять разнице (p-value).",
+      ]} />
       <div className="mt-4"><Chips ariaLabel="Период" value={days} onChange={setDays} options={[{ value: "30", label: "30 дней" }, { value: "90", label: "90 дней" }, { value: "180", label: "180 дней" }]} /></div>
       {a.isError && <div className="mt-4"><ErrorState error={a.error} onRetry={() => a.refetch()} /></div>}
       {a.isLoading && <div className="mt-4 grid grid-cols-2 gap-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[86px] rounded-[18px]" />)}</div>}
@@ -98,7 +104,7 @@ export function AnalystHome() {
                 <div className="mt-2 font-medium">Кампания</div>
                 <div className="text-[13px] text-hint">Прогон оптимизатора с лимитами частоты</div>
               </Card>
-              <Card className="p-4" onClick={() => navigate("/simulator")}>
+              <Card className="p-4" onClick={() => navigate("/")}>
                 <IconBadge tone="violet"><SlidersHorizontal className="size-4" /></IconBadge>
                 <div className="mt-2 font-medium">Симулятор</div>
                 <div className="text-[13px] text-hint">Профиль → предложение, канал, частота</div>

@@ -87,7 +87,7 @@ export function Campaign() {
       </Section>
       <div className="mt-4">
         {run.data ? (
-          <Button block size="lg" variant="secondary" onClick={() => navigate("/")}>К метрикам пилота</Button>
+          <Button block size="lg" variant="secondary" onClick={() => navigate("/pilot")}>К метрикам пилота</Button>
         ) : (
           <Button block size="lg" icon={<Megaphone className="size-4" />} loading={run.isPending} disabled={!preview.data} onClick={confirmRun}>Запустить кампанию</Button>
         )}

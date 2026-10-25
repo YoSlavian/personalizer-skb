@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ClipboardCheck, FileText, SlidersHorizontal, Users } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useMe } from "../../auth/AuthProvider";
+import { Hint } from "../../components/Hint";
 import { BellButton, Screen } from "../../components/Layout";
 import { Card, EmptyState, ErrorState, IconBadge, List, Row, Section, Skeleton, Stat, StatusPill } from "../../components/ui";
 import { get } from "../../lib/api";
@@ -17,6 +18,11 @@ export function ManagerHome() {
 
   return (
     <Screen title={`Добрый день, ${me.user.full_name.split(" ")[0]}`} subtitle="Портфель клиентского менеджера" right={<BellButton />}>
+      <Hint id="manager" title="Вы смотрите глазами менеджера банка" steps={[
+        "Задачи создаёт сама система: например, «клиент сомневается в расчёте» или «уточните роль в CRM».",
+        "Откройте задачу — там подсказано, что сделать; отметьте результат.",
+        "Во вкладке «Заявки» меняйте статусы — клиент сразу получит уведомление в боте.",
+      ]} />
       {d.isError && <div className="mt-4"><ErrorState error={d.error} onRetry={() => d.refetch()} /></div>}
       <div className="mt-4 grid grid-cols-3 gap-2">
         {k ? (

@@ -67,7 +67,8 @@ function RoleRoutes({ role }: { role: Role }) {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={role === "client" ? <ClientHome /> : role === "manager" ? <ManagerHome /> : <AnalystHome />} />
+        <Route index element={role === "client" ? <ClientHome /> : role === "manager" ? <ManagerHome /> : <Simulator />} />
+        {analyst && <Route path="pilot" element={<AnalystHome />} />}
         <Route path="applications" element={<Applications />} />
         <Route path="applications/:id" element={<ApplicationDetail />} />
         <Route path="notifications" element={<Notifications />} />

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Briefcase, Building2, Calculator, ChevronRight, LogIn, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { Banner, Button, Field, inputCls, Spinner } from "../components/ui";
+import { Banner, Button, cx, Field, inputCls, Spinner } from "../components/ui";
 import { ApiError, get } from "../lib/api";
 import { useAuth } from "./AuthProvider";
 
@@ -34,11 +34,17 @@ function useDemoAccounts() {
 
 function Intro() {
   return (
-    <div className="mt-6 space-y-3">
+    <div className="card mt-6 p-4">
+      <div className="text-[15px] font-medium">Что это</div>
+      <p className="mt-1 text-[14px] text-hint">
+        Сейчас банк показывает всем компаниям одинаковую рекламу. Здесь система подбирает каждой компании своё предложение:
+        какой продукт, с каким текстом, кому из сотрудников, по какому каналу и как часто.
+      </p>
+    <div className="mt-3 space-y-3">
       {[
-        { icon: Sparkles, text: "Предложение под задачи вашей компании: отрасль, сезон, роль в бизнесе" },
-        { icon: Calculator, text: "Расчёт и заявка за пару минут — с подсказками, если что-то непонятно" },
-        { icon: ShieldCheck, text: "Статусы заявок и ответы менеджера — здесь и в чате бота" },
+        { icon: Sparkles, text: "Предложение под отрасль, сезон и роль человека в компании" },
+        { icon: Calculator, text: "Расчёт и заявка с подсказками, если клиент сомневается" },
+        { icon: ShieldCheck, text: "Менеджер получает задачи, клиент — статусы в чате бота" },
       ].map(({ icon: Icon, text }) => (
         <div key={text} className="flex items-start gap-3">
           <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
@@ -48,8 +54,18 @@ function Intro() {
         </div>
       ))}
     </div>
+    </div>
   );
 }
+
+// Порядок и понятные описания ролей: с чего начать и что увидите
+const ROLE_ORDER = ["analyst", "client", "manager", "admin"];
+const ROLE_TEXT: Record<string, string> = {
+  analyst: "Главное: выбираете компанию — видите, что ей предложит система и почему",
+  client: "Глазами компании: личное предложение, расчёт и заявка",
+  manager: "Глазами менеджера банка: задачи, которые создала система",
+  admin: "Пользователи и журнал действий",
+};
 
 function PasswordForm({ submitLabel, onSubmit, prefill }: { submitLabel: string; onSubmit: (email: string, password: string) => Promise<void>; prefill?: { email: string; password: string } }) {
   const [email, setEmail] = useState(prefill?.email ?? "");
@@ -94,17 +110,21 @@ function DemoList({ onPick, busyEmail }: { onPick: (email: string) => void; busy
   if (!demo.data) return null;
   return (
     <div className="mt-6">
-      <div className="mb-2 px-1 text-[13px] font-medium uppercase tracking-wide text-hint">Демо-режим: войти как</div>
+      <div className="mb-2 px-1 text-[15px] font-medium">Выберите, чьими глазами смотреть</div>
       <div className="card divide-y divide-sep overflow-hidden">
-        {demo.data.accounts.map((a) => {
+        {[...demo.data.accounts].sort((x, y) => ROLE_ORDER.indexOf(x.role) - ROLE_ORDER.indexOf(y.role)).map((a, i) => {
           const Icon = ROLE_ICON[a.role] ?? UserRound;
+          const first = i === 0;
           return (
             <button key={a.email} type="button" onClick={() => onPick(a.email)} disabled={!!busyEmail}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-subtle disabled:opacity-60">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-subtle text-text"><Icon className="size-4" /></div>
+              className={cx("flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-subtle disabled:opacity-60", first && "bg-brand-soft")}>
+              <div className={cx("flex size-10 items-center justify-center rounded-xl", first ? "bg-brand text-white" : "bg-subtle text-text")}><Icon className="size-5" /></div>
               <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-medium">{a.title}</div>
-                <div className="truncate text-[13px] text-hint">{a.description}</div>
+                <div className="flex items-center gap-2 text-[15px] font-medium">
+                  {a.title}
+                  {first && <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-semibold text-white">начните здесь</span>}
+                </div>
+                <div className="text-[13px] leading-snug text-hint">{ROLE_TEXT[a.role] ?? a.description}</div>
               </div>
               {busyEmail === a.email ? <Spinner className="text-brand" /> : <ChevronRight className="size-4 text-hint" />}
             </button>
@@ -160,6 +180,7 @@ export function BrowserLogin({ reason }: { reason?: "expired" | "logout" }) {
   const demo = useDemoAccounts();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const pick = async (email: string) => {
     if (!demo.data) return;
     setBusy(email);
@@ -176,14 +197,19 @@ export function BrowserLogin({ reason }: { reason?: "expired" | "logout" }) {
     <div className="mx-auto max-w-lg px-4 pb-10 pt-8 animate-fade-up">
       <Brand />
       {reason === "expired" && <div className="mt-5"><Banner tone="warn">Сессия истекла. Войдите снова — данные не потеряны.</Banner></div>}
-      <div className="mt-5">
-        <Banner tone="info">Приложение рассчитано на Telegram: откройте его кнопкой в боте. В браузере доступен вход по учётной записи.</Banner>
-      </div>
-      <div className="card mt-4 p-4">
-        <PasswordForm submitLabel="Войти" onSubmit={loginWithPassword} />
-      </div>
+      <Intro />
       {error && <div className="mt-3"><Banner tone="warn">{error}</Banner></div>}
       <DemoList onPick={pick} busyEmail={busy} />
+      <div className="mt-6">
+        {showForm || !demo.data ? (
+          <div className="card p-4">
+            <div className="mb-3 text-[15px] font-medium">Вход по учётной записи</div>
+            <PasswordForm submitLabel="Войти" onSubmit={loginWithPassword} />
+          </div>
+        ) : (
+          <Button variant="ghost" block onClick={() => setShowForm(true)}>У меня есть учётная запись</Button>
+        )}
+      </div>
     </div>
   );
 }

@@ -91,7 +91,7 @@ export function ClientDetail() {
               {decision.data.group_level && <div className="mb-3"><Banner tone="info">Решение принимается на уровне группы: одно предложение ФД головной компании.</Banner></div>}
               <DecisionView r={decision.data.result} variant={decision.data.variant} />
               <Button className="mt-4" block variant="secondary" icon={<SlidersHorizontal className="size-4" />}
-                onClick={() => navigate("/simulator", { state: { profile: decision.data!.profile } })}>
+                onClick={() => navigate("/", { state: { profile: decision.data!.profile } })}>
                 Что если… (открыть в симуляторе)
               </Button>
             </>
