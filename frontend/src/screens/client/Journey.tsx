@@ -346,7 +346,7 @@ export function Journey() {
           </Field>
           {formError && !Object.keys(fe).length && <Banner tone="warn">{formError.message}</Banner>}
           {formError && Object.keys(fe).length > 0 && <Banner tone="warn">Проверьте поля формы</Banner>}
-          <p className="px-1 text-[12px] text-hint">Отправляя заявку, вы передаёте её клиентскому менеджеру. Демо: банк не получает данные, суммы синтетические.</p>
+          <p className="px-1 text-[12px] text-hint">Отправляя заявку, вы передаёте её клиентскому менеджеру.</p>
           <PrimaryAction text={submitting ? "Отправляем…" : "Отправить заявку"} onClick={submit} loading={submitting} disabled={amountMln <= 0} />
         </div>
       )}

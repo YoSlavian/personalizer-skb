@@ -67,7 +67,7 @@ export function Simulator() {
         </div>
       </div>
 
-      {fromClient && <div className="mt-2"><Banner tone="info">Профиль реального (синтетического) клиента: изменения — сценарий «что если» и не сохраняются.</Banner></div>}
+      {fromClient && <div className="mt-2"><Banner tone="info">Профиль клиента из базы: изменения — сценарий «что если» и не сохраняются.</Banner></div>}
 
       {tab === "profile" && (
         <div className="animate-fade">

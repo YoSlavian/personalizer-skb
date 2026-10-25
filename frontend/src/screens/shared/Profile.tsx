@@ -154,8 +154,8 @@ export function ProfileScreen() {
 
       <Section title="О приложении">
         <List>
-          <Row left={<Info className="size-5 text-hint" />} title="Персонализатор СКБ 1.0" subtitle="Прототип кейс-школы Альфа-Будущее, команда 13 · Rizz Banking" />
-          <Row left={<ShieldCheck className="size-5 text-hint" />} title="Данные синтетические" subtitle="Это не сервис Альфа-Банка: интеграций с системами банка нет. Роль храним как должность, без ФИО." />
+          <Row left={<Info className="size-5 text-hint" />} title="Персонализатор СКБ 1.0" subtitle="MVP · команда 13 · Rizz Banking" />
+          <Row left={<ShieldCheck className="size-5 text-hint" />} title="Демо-данные" subtitle="Компании и суммы демонстрационные. Роль храним как должность, без ФИО." />
         </List>
       </Section>
 

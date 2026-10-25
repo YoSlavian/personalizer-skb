@@ -136,7 +136,7 @@ export function ClientHome() {
               <Row title="Роль в компании" subtitle={`${h.role.name} · ${ROLE_SOURCE[h.role.source]}`} />
             </List>
           </Section>
-          <p className="mt-6 px-1 text-center text-[12px] text-hint">Прототип кейс-школы · синтетические данные · не является сервисом Альфа-Банка</p>
+          <p className="mt-6 px-1 text-center text-[12px] text-hint">Персонализатор СКБ · MVP · демо-данные</p>
         </>
       )}
     </Screen>

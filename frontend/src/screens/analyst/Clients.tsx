@@ -24,7 +24,7 @@ export function Clients() {
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <Screen title="Клиенты" subtitle={list.data ? `${list.data.pages[0].total} компаний · синтетика` : " "} right={<BellButton />}>
+    <Screen title="Клиенты" subtitle={list.data ? `${list.data.pages[0].total} компаний` : " "} right={<BellButton />}>
       <div className="mt-4 space-y-3">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-hint" />

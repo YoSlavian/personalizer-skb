@@ -76,7 +76,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Персонализатор СКБ API",
         version="1.0.0",
-        description="Прототип PoC кейса «Персонализация коммуникаций с корпоративными клиентами». Только синтетические данные.",
+        description="MVP «Персонализация коммуникаций с корпоративными клиентами»: кому, когда и как предлагать. Демо-данные.",
         docs_url="/api/docs",
         redoc_url=None,
         openapi_url="/api/openapi.json",

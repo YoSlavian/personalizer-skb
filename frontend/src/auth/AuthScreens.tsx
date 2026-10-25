@@ -17,7 +17,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
       </div>
       <div>
         <div className="font-display text-[20px] leading-tight">Персонализатор СКБ</div>
-        {!compact && <div className="text-[13px] text-hint">Прототип кейс-школы Альфа-Будущее · синтетические данные</div>}
+        {!compact && <div className="text-[13px] text-hint">Кому, когда и как предлагать · MVP</div>}
       </div>
     </div>
   );
@@ -111,7 +111,7 @@ function DemoList({ onPick, busyEmail }: { onPick: (email: string) => void; busy
           );
         })}
       </div>
-      <p className="mt-2 px-1 text-[12px] text-hint">Все компании, люди и суммы синтетические. Это не сервис Альфа-Банка.</p>
+      <p className="mt-2 px-1 text-[12px] text-hint">Демо-режим: компании, люди и суммы демонстрационные.</p>
     </div>
   );
 }

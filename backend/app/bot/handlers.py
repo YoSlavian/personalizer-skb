@@ -29,7 +29,7 @@ log = logging.getLogger("bot")
 router = Router(name="main")
 
 ROLE_TITLES = {UserRole.client: "клиент", UserRole.manager: "клиентский менеджер", UserRole.analyst: "аналитик СКБ", UserRole.admin: "администратор"}
-DEMO_NOTE = "\n\n<i>Прототип кейс-школы. Все компании и суммы синтетические, это не сервис Альфа-Банка.</i>"
+DEMO_NOTE = "\n\n<i>Демо-режим: компании и суммы демонстрационные.</i>"
 
 
 class TaskDone(StatesGroup):
@@ -80,14 +80,14 @@ async def cmd_start(message: Message, command: CommandObject, db: AsyncSession, 
         await _greet(message, user)
         return
     text = (
-        "Здравствуйте! Это <b>Персонализатор СКБ</b> — прототип персонализации коммуникаций банка с корпоративными клиентами.\n\n"
+        "Здравствуйте! Это <b>Персонализатор СКБ</b> — персонализация коммуникаций с корпоративными клиентами: кому, когда и как предлагать.\n\n"
         "Что умеет:\n• персональное предложение под отрасль, роль и сезон компании;\n• расчёт и заявка в приложении;\n"
         "• статусы заявок и ответы менеджера;\n• задачи клиентского менеджера.\n\n"
         "Чтобы начать, откройте приложение и войдите — Telegram привяжется автоматически."
     )
     markup = None
     if get_settings().demo_mode:
-        text += "\n\n<b>Демо-режим:</b> выберите синтетическую роль ниже."
+        text += "\n\n<b>Демо-режим:</b> выберите роль ниже."
         markup = kb.demo_personas()
         btn = kb.open_app_button("Открыть приложение")
         if btn:
@@ -354,7 +354,7 @@ async def render_notification(db: AsyncSession, n: Notification) -> tuple[str, o
     p = n.tg_payload or {}
     t = p.get("type")
     if t == "offer":
-        return (f"<b>{esc(n.title)}</b>\n{esc(n.body)}\n\n<i>Персональное предложение · синтетические данные прототипа</i>",
+        return (f"<b>{esc(n.title)}</b>\n{esc(n.body)}\n\n<i>Персональное предложение</i>",
                 kb.offer_keyboard(int(p["communication_id"]), str(p.get("cta") or "Рассчитать")))
     if t == "application":
         return f"📄 <b>{esc(n.title)}</b>\n{esc(n.body)}", kb.application_keyboard(int(p["application_id"]), True)
