@@ -46,7 +46,8 @@ async def _issue(session: AsyncSession, user: User, kind: SessionKind, ip: str |
 
 async def login(session: AsyncSession, email: str, password: str, *, ip: str | None, user_agent: str | None) -> IssuedSession:
     email = email.strip().lower()
-    key = f"{email}|{ip}"
+    # Лимит на учётку не зависит от IP: смена адреса не даёт бесконечных попыток подбора пароля
+    key = email
     for limiter, k in ((login_limiter, key), (ip_login_limiter, ip or "-")):
         wait = limiter.blocked(k)
         if wait:

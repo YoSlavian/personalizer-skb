@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import like_pattern
 from app.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from app.models import AuditEvent, Contact, Organization, TelegramLink, User, UserSettings
 from app.models.enums import Position, UserRole
@@ -53,8 +54,8 @@ async def memberships(session: AsyncSession, user: User) -> list[Contact]:
 async def list_users(session: AsyncSession, *, search: str | None, role: UserRole | None, page: int, size: int) -> tuple[list[User], int]:
     q = select(User)
     if search:
-        like = f"%{search.strip()[:100]}%"
-        q = q.where(or_(User.email.ilike(like), User.full_name.ilike(like)))
+        like = like_pattern(search)
+        q = q.where(or_(User.email.ilike(like, escape="\\"), User.full_name.ilike(like, escape="\\")))
     if role:
         q = q.where(User.role == role)
     total = (await session.execute(select(func.count()).select_from(q.subquery()))).scalar_one()

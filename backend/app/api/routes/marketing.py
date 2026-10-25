@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import DB, AnalystOrAdmin, Staff, paginated
 from app.api.serializers import app_out, comm_out, notification_out, rule_set_out, run_out, task_out
+from app.demo_accounts import ensure_not_public_demo
 from app.engine.rules import DEFAULT_RULES, RulesConfig
 from app.models.enums import AbVariant, Channel, CommStatus
 from app.services import analytics as an_svc
@@ -81,6 +82,7 @@ async def rule_version(version: int, user: Staff, db: DB) -> dict:
 
 @router.post("/rules", status_code=201)
 async def create_rules(body: RulesIn, user: AnalystOrAdmin, db: DB) -> dict:
+    ensure_not_public_demo(user)
     rs = await rules_svc.create_version(db, user, body.config, body.comment, body.activate)
     await db.commit()
     return rule_set_out(await rules_svc.get_version(db, rs.version), with_config=True)
@@ -88,6 +90,7 @@ async def create_rules(body: RulesIn, user: AnalystOrAdmin, db: DB) -> dict:
 
 @router.post("/rules/{version}/activate")
 async def activate_rules(version: int, user: AnalystOrAdmin, db: DB) -> dict:
+    ensure_not_public_demo(user)
     await rules_svc.activate_version(db, user, version)
     await db.commit()
     return rule_set_out(await rules_svc.get_version(db, version), with_config=True)

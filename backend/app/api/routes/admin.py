@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.api.deps import DB, Admin, client_ip, paginated, reload
 from app.api.serializers import audit_out, user_out
+from app.demo_accounts import ensure_not_public_demo
 from app.models import User
 from app.models.enums import Position, UserRole
 from app.services import users as user_svc
@@ -40,6 +41,7 @@ async def users(admin: Admin, db: DB, search: Annotated[str | None, Query(max_le
 
 @router.post("/users", status_code=201)
 async def create_user(body: UserIn, request: Request, admin: Admin, db: DB) -> dict:
+    ensure_not_public_demo(admin)
     u = await user_svc.create_user(db, admin, email=body.email, full_name=body.full_name, role=body.role, password=body.password,
                                    org_id=body.org_id, position=body.position, ip=client_ip(request))
     await db.commit()
@@ -48,6 +50,7 @@ async def create_user(body: UserIn, request: Request, admin: Admin, db: DB) -> d
 
 @router.patch("/users/{user_id}")
 async def patch_user(user_id: int, body: UserPatch, request: Request, admin: Admin, db: DB) -> dict:
+    ensure_not_public_demo(admin)
     await user_svc.update_user(db, admin, user_id, body.model_dump(exclude_unset=True), ip=client_ip(request))
     await db.commit()
     return user_out(await reload(db, User, user_id))

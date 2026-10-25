@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import like_pattern
 from app.db import utcnow
 from app.engine.rules import RulesConfig
 from app.errors import Forbidden, NotFound, ValidationFailed
@@ -38,8 +39,8 @@ async def list_orgs(
 ) -> tuple[list[Organization], int]:
     q = select(Organization).where(org_scope(user, Organization.id))
     if search:
-        like = f"%{search.strip()[:100]}%"
-        q = q.where(or_(Organization.name.ilike(like), Organization.inn.ilike(like)))
+        like = like_pattern(search)
+        q = q.where(or_(Organization.name.ilike(like, escape="\\"), Organization.inn.ilike(like, escape="\\")))
     if industry:
         q = q.where(Organization.industry == industry)
     if segment:

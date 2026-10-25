@@ -16,6 +16,7 @@ from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import db as dbmod
+from app.api.deps import client_ip
 from app.api.routes import admin, auth, cabinet, demo, marketing, me, orgs, telegram, work
 from app.config import get_settings
 from app.errors import AppError
@@ -77,9 +78,10 @@ def create_app() -> FastAPI:
         title="Персонализатор СКБ API",
         version="1.0.0",
         description="MVP «Персонализация коммуникаций с корпоративными клиентами»: кому, когда и как предлагать. Демо-данные.",
-        docs_url="/api/docs",
+        # В production схема API не публикуется: меньше информации для разведки
+        docs_url=None if s.is_production else "/api/docs",
         redoc_url=None,
-        openapi_url="/api/openapi.json",
+        openapi_url=None if s.is_production else "/api/openapi.json",
         lifespan=lifespan,
     )
 
@@ -106,7 +108,7 @@ def create_app() -> FastAPI:
     async def _security(request: Request, call_next):  # noqa: ANN001, ANN202
         path = request.url.path
         if path.startswith("/api/") and path not in ("/api/health", "/api/telegram/webhook"):
-            ip = request.client.host if request.client else "-"
+            ip = client_ip(request) or "-"
             ok, wait = api_limiter.hit(ip)
             if not ok:
                 return _error(429, "too_many_requests", "Слишком много запросов. Подождите немного", {"retry_after": int(wait) + 1},

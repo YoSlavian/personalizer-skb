@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.api.deps import DB, Auth, CurrentUser, paginated, reload
 from app.api.serializers import notification_out, user_out
 from app.config import get_settings
+from app.demo_accounts import ensure_not_public_demo
 from app.engine.catalog import catalog_payload
 from app.models import User
 from app.services import notifications as notif_svc
@@ -39,6 +40,7 @@ async def catalog() -> dict:
 
 @router.patch("/me")
 async def update_me(body: ProfileIn, user: CurrentUser, db: DB) -> dict:
+    ensure_not_public_demo(user)
     user.full_name = body.full_name.strip()
     await db.commit()
     return user_out(await reload(db, User, user.id))
@@ -53,6 +55,7 @@ async def patch_settings(body: SettingsIn, user: CurrentUser, db: DB) -> dict:
 
 @router.post("/me/password")
 async def post_password(body: PasswordIn, auth: Auth, db: DB) -> dict:
+    ensure_not_public_demo(auth.user)
     await change_password(db, auth.user, body.current_password, body.new_password, auth.id)
     await db.commit()
     return {"ok": True}

@@ -82,6 +82,13 @@ Client = Annotated[User, require(UserRole.client)]
 
 
 def client_ip(request: Request) -> str | None:
+    """IP клиента для лимитов и аудита. За прокси хостинга берём последний адрес X-Forwarded-For — его дописывает
+    сам прокси; первые адреса клиент может подставить и обойти ограничение попыток."""
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        last = xff.split(",")[-1].strip()
+        if last:
+            return last[:64]
     return request.client.host if request.client else None
 
 

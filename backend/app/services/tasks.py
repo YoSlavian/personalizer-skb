@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import Select, and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import like_pattern
 from app.db import utcnow
 from app.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from app.models import Organization, StatusChange, Task, User
@@ -111,8 +112,8 @@ def _filtered(user: User, *, statuses: list[TaskStatus] | None, assignee: str | 
     if overdue:
         q = q.where(Task.due_at < utcnow(), Task.status.in_([TaskStatus.open, TaskStatus.in_progress]))
     if search:
-        like = f"%{search.strip()[:100]}%"
-        q = q.join(Organization, Organization.id == Task.org_id).where(or_(Task.title.ilike(like), Organization.name.ilike(like)))
+        like = like_pattern(search)
+        q = q.join(Organization, Organization.id == Task.org_id).where(or_(Task.title.ilike(like, escape="\\"), Organization.name.ilike(like, escape="\\")))
     return q
 
 

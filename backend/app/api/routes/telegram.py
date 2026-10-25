@@ -18,6 +18,9 @@ async def webhook(request: Request) -> dict:
     secret = s.webhook_secret
     if not secret or not constant_eq(request.headers.get("x-telegram-bot-api-secret-token"), secret):
         raise Forbidden("Неверный секрет вебхука")
+    declared = request.headers.get("content-length", "0")
+    if not declared.isdigit() or int(declared) > 1_000_000:
+        raise Forbidden("Слишком большой update")
     body = await request.body()
     if len(body) > 1_000_000:
         raise Forbidden("Слишком большой update")

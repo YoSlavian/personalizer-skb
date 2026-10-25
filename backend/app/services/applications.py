@@ -3,6 +3,7 @@
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import like_pattern
 from app.db import utcnow
 from app.engine.catalog import PRODUCTS
 from app.errors import Conflict, Forbidden, NotFound, ValidationFailed
@@ -313,8 +314,8 @@ async def list_applications(
     if assignee == "me":
         q = q.where(Application.assignee_id == user.id)
     if search:
-        like = f"%{search.strip()[:100]}%"
-        q = q.join(Organization, Organization.id == Application.org_id).where(or_(Application.number.ilike(like), Organization.name.ilike(like)))
+        like = like_pattern(search)
+        q = q.join(Organization, Organization.id == Application.org_id).where(or_(Application.number.ilike(like, escape="\\"), Organization.name.ilike(like, escape="\\")))
     total = (await session.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     order = {
         "-created": [Application.created_at.desc()],

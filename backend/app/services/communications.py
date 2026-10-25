@@ -5,6 +5,7 @@ from datetime import timedelta
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import like_pattern
 from app.db import utcnow
 from app.errors import NotFound, ValidationFailed
 from app.models import Communication, Organization, User
@@ -42,8 +43,8 @@ async def list_communications(
     if run_id:
         q = q.where(Communication.campaign_run_id == run_id)
     if search:
-        like = f"%{search.strip()[:100]}%"
-        q = q.join(Organization, Organization.id == Communication.org_id).where(or_(Organization.name.ilike(like), Communication.headline.ilike(like)))
+        like = like_pattern(search)
+        q = q.join(Organization, Organization.id == Communication.org_id).where(or_(Organization.name.ilike(like, escape="\\"), Communication.headline.ilike(like, escape="\\")))
     total = (await session.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     items = (await session.execute(q.order_by(Communication.created_at.desc(), Communication.id.desc()).offset((page - 1) * size).limit(size))).scalars()
     return list(items), total

@@ -25,6 +25,12 @@ def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+def like_pattern(search: str) -> str:
+    """Поиск «содержит» без подстановочных символов пользователя: % и _ экранируются (используйте escape="\\")."""
+    s = search.strip()[:100].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{s}%"
+
+
 def _make_engine(url: str) -> AsyncEngine:
     settings = get_settings()
     kwargs: dict = {"echo": settings.sql_echo, "pool_pre_ping": True}

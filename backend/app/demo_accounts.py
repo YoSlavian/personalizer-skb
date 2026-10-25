@@ -11,6 +11,20 @@ DEMO_ACCOUNTS = [
     {"email": "admin@demo.local", "title": "Администратор", "description": "Пользователи и журнал аудита", "role": "admin"},
 ]
 
+DEMO_EMAILS = frozenset(a["email"] for a in DEMO_ACCOUNTS)
+
+
+def ensure_not_public_demo(user) -> None:  # noqa: ANN001
+    """На публичном сервере с DEMO_MODE пароль демо-учёток известен всем: запрещаем действия, которые ломают демо другим
+    (смена пароля, управление пользователями, активация правил)."""
+    from app.config import get_settings
+    from app.errors import Forbidden
+
+    s = get_settings()
+    if s.demo_mode and s.is_production and user.email in DEMO_EMAILS:
+        raise Forbidden("В публичном демо это действие отключено", code="demo_read_only")
+
+
 # Персоны для быстрого входа в Telegram-боте в демо-режиме
 BOT_DEMO_PERSONAS = {
     "client_fd": "fd@pole-invest.demo",
