@@ -45,6 +45,10 @@ class Organization(Base):
     manager_id: Mapped[int | None] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"), index=True)
     ab_variant: Mapped[AbVariant] = mapped_column(enum_type(AbVariant, "ab_variant"))
     is_synthetic: Mapped[bool] = mapped_column(default=True)
+    # Из датасета кейса: id компании, подключённые продукты (флаги CL_PRODUCT_*), участие в ВЭД (FTS_FLAG)
+    dataset_uid: Mapped[str | None] = mapped_column(sa.String(32), index=True)
+    owned_products: Mapped[list[str]] = mapped_column(sa.JSON, default=list)
+    foreign_trade: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 

@@ -6,10 +6,12 @@
 
 import argparse
 import asyncio
+import json
 import random
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import db as dbmod
@@ -17,6 +19,7 @@ from app.config import get_settings
 from app.db import Base, utcnow
 from app.demo_accounts import DEMO_PASSWORD
 from app.engine.catalog import PRODUCTS
+from app.engine.rules import DEFAULT_RULES, RulesConfig
 from app.models import (
     Application,
     ApplicationComment,
@@ -28,6 +31,7 @@ from app.models import (
     JourneySession,
     Notification,
     Organization,
+    RuleSet,
     Signal,
     StatusChange,
     Task,
@@ -236,6 +240,7 @@ async def seed(session: AsyncSession, *, now: datetime | None = None) -> dict:
     session.add(Signal(org_id=gen_orgs[8].id, kind=SignalKind.deposit_ending, note="Депозит до " + (today + timedelta(days=10)).strftime("%d.%m"),
                        created_at=now - timedelta(days=4), expires_at=now + timedelta(days=10)))
     await session.commit()
+    await seed_dataset(session, rng, now, km1.id, km2.id, history=False)
     # Дальше движок читает профили из БД: начинаем с чистой identity map, чтобы связи загрузились полностью
     session.expunge_all()
 
@@ -248,9 +253,79 @@ async def seed(session: AsyncSession, *, now: datetime | None = None) -> dict:
     return stats
 
 
-async def _history(session: AsyncSession, rng: random.Random, now: datetime, demo_ids: set[int]) -> dict:
+DATASET_FILE = Path(__file__).resolve().parent / "data" / "dataset_calibration.json"
+
+
+def calibrated_rules(calibration: dict) -> dict:
+    """Стартовые правила, где матрица «отрасль × продукт» уточнена по похожим клиентам СКБ из датасета кейса."""
+    cfg = RulesConfig.model_validate(DEFAULT_RULES).model_dump()
+    for ind, row in calibration["industry_k"].items():
+        cfg["industry_k"].setdefault(ind, {}).update(row)
+    return cfg
+
+
+async def seed_dataset(session: AsyncSession, rng: random.Random, now: datetime, km1_id: int, km2_id: int, *, history: bool) -> int:
+    """Компании из датасета кейса (выборка СКБ) и правила v2, откалиброванные по нему. Повторный вызов ничего не делает."""
+    if not DATASET_FILE.exists():
+        return 0
+    if (await session.execute(select(func.count()).select_from(Organization).where(Organization.dataset_uid.is_not(None)))).scalar_one():
+        return 0
+    data = json.loads(DATASET_FILE.read_text(encoding="utf-8"))
+    if not (await session.execute(select(RuleSet).where(RuleSet.version == 2))).scalar_one_or_none():
+        await session.execute(update(RuleSet).values(is_active=False))
+        session.add(RuleSet(version=2, config=calibrated_rules(data), is_active=True,
+                            comment=f"Матрица «отрасль × продукт» по датасету кейса: {data['stats']['skb_clients']} клиентов СКБ"))
+    groups: dict[str, CompanyGroup] = {}
+    created: list[Organization] = []
+    inn = 9900500000
+    for i, c in enumerate(data["sample"]):
+        g = None
+        if c["group"]:
+            g = groups.get(c["group"])
+            if g is None:
+                g = CompanyGroup(name=f"Группа {c['group'].split('_')[1]} (датасет)",
+                                 ab_variant=AbVariant.test if len(groups) % 2 == 0 else AbVariant.control)
+                session.add(g)
+                await session.flush()
+                groups[c["group"]] = g
+        seasonal = c["industry"] in ("agro", "retail") and rng.random() < 0.7
+        base = max(20.0, c["revenue_mln"] / 12)
+        o = Organization(
+            name=f"Компания {c['uid']} · {c['city'].replace('г. ', '')}"[:200], inn=str(inn + i), group_id=g.id if g else None,
+            head_of_group=bool(g) and not any(x.group_id == g.id for x in created), industry=Industry(c["industry"]), okved=c["okved"],
+            revenue_mln=c["revenue_mln"], turnover_by_month=turnover(rng, rng.randint(1, 12), base, 0.9 if seasonal else 0.15),
+            seasonal=seasonal, logins_30d=rng.choice([0, 1, 3, 5, 9, 14, 20]),  # активности в датасете нет — синтетика
+            balance_kind=BalanceKind(c["balance"]) if c["balance"] else None, manager_id=km1_id if i % 2 else km2_id,
+            ab_variant=g.ab_variant if g else (AbVariant.test if i % 2 == 0 else AbVariant.control),
+            dataset_uid=c["uid"], owned_products=c["owned"], foreign_trade=c["foreign_trade"],
+        )
+        session.add(o)
+        created.append(o)
+    await session.flush()
+    for o, c in zip(created, data["sample"], strict=True):
+        # «Наличие ключевого собственника» из датасета → в CRM роли нет, но первая подпись и Альфа-Босс у собственника
+        if c["key_owner"]:
+            session.add(Contact(org_id=o.id, label="Ключевой собственник", ib_rights=IbRights.first_signature, boss_access=True, is_primary=True))
+        else:
+            pos = rng.choice(["fd", "acc", None, "owner"])
+            session.add(Contact(org_id=o.id, label="Контакт из CRM", crm_position=Position(pos) if pos else None,
+                                ib_rights=rng.choice([IbRights.second_signature, IbRights.first_signature, None]), is_primary=True))
+        if c["foreign_trade"] and rng.random() < 0.15:
+            session.add(Signal(org_id=o.id, kind=SignalKind.fx_payment, note=f"Платёж: {c['countries'].split(',')[0].title() or 'зарубежный поставщик'}",
+                               created_at=now, expires_at=now + timedelta(days=5)))
+    await session.commit()
+    if history:
+        session.expunge_all()
+        await _history(session, rng, now, set(), only={o.id for o in created})
+        await session.commit()
+    return len(created)
+
+
+async def _history(session: AsyncSession, rng: random.Random, now: datetime, demo_ids: set[int], only: set[int] | None = None) -> dict:
     """Синтетическая история коммуникаций за 13 недель: тест — решения движка, контроль — AS IS каждому юрлицу."""
     orgs = list((await session.execute(select(Organization).order_by(Organization.id))).scalars())
+    if only is not None:
+        orgs = [o for o in orgs if o.id in only]
     units: dict[object, list[Organization]] = {}
     for o in orgs:
         units.setdefault(o.group_id or f"solo-{o.id}", []).append(o)
@@ -427,7 +502,10 @@ async def main(reset: bool) -> None:
     async with dbmod.session_factory()() as session:
         has_users = (await session.execute(select(func.count()).select_from(User))).scalar_one()
         if has_users and not reset:
-            print("Демо-данные уже есть. Для пересоздания: python -m app.seed --reset")
+            # Обновление развёрнутой базы: компании из датасета кейса и правила v2 добавляются один раз
+            kms = list((await session.execute(select(User.id).where(User.role == UserRole.manager).order_by(User.id))).scalars())
+            added = await seed_dataset(session, random.Random(17), utcnow(), kms[0], kms[-1], history=True) if kms else 0
+            print(f"Демо-данные уже есть; добавлено компаний из датасета: {added}. Для пересоздания: python -m app.seed --reset")
             return
         if reset:
             if s.is_production:

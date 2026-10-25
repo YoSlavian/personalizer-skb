@@ -53,8 +53,10 @@ def score_products(
 
         # Что и когда: отрасль
         k_ind = cfg.industry_k.get(ind, {}).get(code, 1.0)
-        if code == "ved" and not p.fx_payment and ind != "trade":
+        if code == "ved" and not p.fx_payment and not p.foreign_trade and ind != "trade":
             k_ind, off = 0.0, "нет валютных операций"
+        if code == "ved" and p.foreign_trade:
+            why.append("в базе ФТС: ведёт ВЭД")
 
         # Что и когда: момент (сезон, события)
         if code in ("working", "concession") and is_season(p, ind):
@@ -81,6 +83,10 @@ def score_products(
         if code in p.stopped_products:
             k_mom = 0.0
             off = off or f"стоп-кран: {cfg.stop_crane.clicks} клика без заявки, пауза {cfg.stop_crane.days} дней"
+        # Продукт уже есть — повторно не предлагаем; исключение — пролонгация заканчивающегося депозита
+        if code in p.owned_products and not (code == "deposit" and p.deposit_ending):
+            k_mom = 0.0
+            off = off or "продукт уже подключён"
 
         # Кому: роль получателя
         if eff_role:

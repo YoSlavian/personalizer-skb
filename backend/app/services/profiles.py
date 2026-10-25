@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import utcnow
+from app.engine.catalog import PRODUCTS
 from app.engine.policy import HistoryItem, hidden_products, stopped_products, window_start
 from app.engine.profile import ClientProfile, GroupEntity, GroupInfo
 from app.engine.rules import RulesConfig
@@ -171,6 +172,8 @@ async def build_profile(
         opt_out_email=consents.get(ConsentChannel.email, False),
         opt_out_push=consents.get(ConsentChannel.push, False),
         opt_out_all=consents.get(ConsentChannel.all, False),
+        owned_products=sorted({c for c in (base.owned_products or []) if c in PRODUCTS}),
+        foreign_trade=any(m.foreign_trade for m in members),
         turnover_by_month=[float(x) for x in base.turnover_by_month],
     )
     return BuiltProfile(profile=profile, org=base, members=members, contact=contact, role_inference=ri, peak_month=peak_month, history=history)

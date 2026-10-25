@@ -49,12 +49,15 @@ class ClientProfile(BaseModel):
     bki_request: bool = False
     hidden_products: list[str] = []
     stopped_products: list[str] = []
+    # Из данных банка: продукты, которые у клиента уже есть, и участие в ВЭД по базе ФТС
+    owned_products: list[str] = []
+    foreign_trade: bool = False
     opt_out_email: bool = False
     opt_out_push: bool = False
     opt_out_all: bool = False
     turnover_by_month: Annotated[list[float], Field(min_length=12, max_length=12)] | None = None
 
-    @field_validator("hidden_products", "stopped_products")
+    @field_validator("hidden_products", "stopped_products", "owned_products")
     @classmethod
     def _known(cls, v: list[str]) -> list[str]:
         unknown = [p for p in v if p not in PRODUCTS]
