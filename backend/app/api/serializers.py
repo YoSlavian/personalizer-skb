@@ -22,7 +22,8 @@ from app.models import (
     Task,
     User,
 )
-from app.models.enums import TaskStatus
+from app.demo_accounts import DEMO_EMAILS
+from app.models.enums import TaskStatus, UserRole
 from app.services.applications import STATUS_NAMES
 from app.services.orgs import consent_map
 from app.services.profiles import infer_role, primary_contact
@@ -56,7 +57,9 @@ def user_out(u: User) -> dict:
             "notify_offers": s.notify_offers if s else True,
             "adaptive_hints": s.adaptive_hints if s else True,
         },
-        "telegram": [{"id": t.id, "username": t.username, "linked_at": dt(t.linked_at), "via": t.via} for t in u.telegram_links],
+        # Демо-учётками пользуются разные люди: чужие Telegram-логины видит только администратор
+        "telegram": [{"id": t.id, "username": t.username if (u.role == UserRole.admin or u.email not in DEMO_EMAILS) else None,
+                      "linked_at": dt(t.linked_at), "via": t.via} for t in u.telegram_links],
     }
 
 

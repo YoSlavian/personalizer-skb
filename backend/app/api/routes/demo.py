@@ -27,6 +27,10 @@ class PersonaIn(BaseModel):
     email: Literal["analyst@demo.local", "km.ivanova@demo.local", "fd@pole-invest.demo", "buh@kod-servis.demo", "admin@demo.local"]
 
 
+def _persona_allowed(email: str) -> bool:
+    return not (get_settings().is_production and email == "admin@demo.local")
+
+
 def _ensure_demo() -> None:
     if not get_settings().demo_mode:
         raise NotFound("Не найдено")
@@ -35,12 +39,18 @@ def _ensure_demo() -> None:
 @router.get("/accounts")
 async def accounts() -> dict:
     _ensure_demo()
-    return {"password": DEMO_PASSWORD, "accounts": DEMO_ACCOUNTS}
+    accounts = DEMO_ACCOUNTS
+    if get_settings().is_production:
+        # На публичном сервере демо-администратора нет: администрирует личная учётка из ADMIN_EMAIL
+        accounts = [a for a in DEMO_ACCOUNTS if a["role"] != "admin"]
+    return {"password": DEMO_PASSWORD, "accounts": accounts}
 
 
 @router.post("/telegram-persona")
 async def telegram_persona(body: PersonaIn, request: Request, db: DB) -> dict:
     _ensure_demo()
+    if not _persona_allowed(body.email):
+        raise NotFound("Демо-учётка не найдена")
     tg = auth_svc.check_init_data(body.init_data)
     user = (await db.execute(select(User).where(User.email == body.email, User.is_active.is_(True)))).scalar_one_or_none()
     if user is None:

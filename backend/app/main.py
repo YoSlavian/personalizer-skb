@@ -51,6 +51,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     s = get_settings()
     tasks: list[asyncio.Task] = []
     bot_runtime = None
+    if s.environment != "test":
+        from app.services.users import ensure_bootstrap_admin
+
+        try:
+            async with dbmod.session_factory()() as session:
+                problem = await ensure_bootstrap_admin(session)
+            if problem:
+                log.error("Личный администратор не создан: %s", problem)
+        except Exception:  # noqa: BLE001
+            log.exception("Не удалось создать личного администратора")
     if s.bot_token and s.telegram_mode != "off" and s.environment != "test":
         from app.bot.runtime import BotRuntime
 

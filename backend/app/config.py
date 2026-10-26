@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     login_attempts_per_window: int = 5
     login_window_seconds: int = 300
 
+    # Личный администратор: создаётся при запуске, если задан (пароль только в переменных окружения хостинга)
+    admin_email: str | None = None
+    admin_password: SecretStr | None = None
+    admin_name: str = "Администратор"
+
     # Telegram
     telegram_bot_token: SecretStr | None = None
     telegram_bot_username: str | None = None

@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { Hint } from "../../components/Hint";
 import { Screen } from "../../components/Layout";
@@ -14,6 +14,43 @@ import { GroupPlanView, type GroupPlan } from "./GroupPlanView";
 import { GROUPS, PRESETS } from "./presets";
 
 const ACT_LABEL = (n: number) => (n >= 8 ? "высокая" : n >= 2 ? "средняя" : "низкая");
+
+// Подписи признаков для журнала изменений
+const FIELD: Record<string, string> = {
+  industry: "Отрасль", seasonal: "Сезонность", weeks_to_peak: "Недель до пика", role: "Роль", role_source: "Источник роли",
+  structure: "Структура", size: "Размер", group: "Состав группы", mixed_balances: "Разнонаправленные остатки", logins_30d: "Входов за 30 дней",
+  fx_payment: "Валютный платёж", deposit_ending: "Конец депозита", bki_request: "Запрос в БКИ", hidden_products: "Скрыл баннер",
+  opt_out_email: "Отказ от email", opt_out_push: "Отказ от push", opt_out_all: "Отказ от всех коммуникаций",
+};
+type LogEntry = { at: string; change: string; product: string; channel: string; changed: boolean };
+
+/** Журнал: что меняли в профиле и как после этого изменилось предложение. */
+function ChangeLog({ log, onClear }: { log: LogEntry[]; onClear: () => void }) {
+  if (!log.length) return null;
+  return (
+    <Section title="Журнал изменений" action={<button type="button" onClick={onClear} className="text-[13px] font-medium text-link">Очистить</button>}>
+      <div className="card divide-y divide-sep overflow-hidden">
+        {log.map((e, i) => (
+          <div key={`${e.at}-${i}`} className="flex gap-3 px-4 py-3">
+            <div className={cx("mt-1.5 size-2.5 shrink-0 rounded-full", e.changed ? "bg-brand" : "bg-sep")} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="text-[14px] font-medium leading-snug">{e.change}</div>
+                <div className="shrink-0 text-[11px] text-hint tabular">{e.at}</div>
+              </div>
+              <div className="mt-0.5 text-[13px] leading-snug">
+                {e.changed ? <span className="text-brand">→ </span> : <span className="text-hint">без изменений: </span>}
+                <span className={e.changed ? "font-medium" : "text-hint"}>{e.product}</span>
+                <span className="text-hint"> · {e.channel}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 px-1 text-[12px] text-hint">Красная точка — предложение или канал изменились после этого шага.</p>
+    </Section>
+  );
+}
 
 export function Simulator() {
   const location = useLocation();
@@ -43,12 +80,34 @@ export function Simulator() {
     placeholderData: keepPreviousData,
   });
 
+  const [log, setLog] = useStoredState<LogEntry[]>("sim.log", []);
+  const pending = useRef<string | null>(null);
+  const [tick, setTick] = useState(0); // каждое действие пользователя, даже если профиль не изменился
   const set = (patch: Partial<Profile>) => {
     tg.haptic("select");
     setPreset(null);
+    pending.current = Object.keys(patch).map((k) => FIELD[k] ?? k).join(", ");
+    setTick((t) => t + 1);
     setProfile((prev) => ({ ...prev, ...patch }));
   };
+  const pickPreset = (id: string, title: string, prof: Profile) => {
+    pending.current = `Клиент ${id} · ${title}`;
+    setTick((t) => t + 1);
+    setPreset(id);
+    setProfile(prof);
+  };
   const r = sim.data?.result;
+  // Как только пришёл результат для изменённого профиля — записываем строку журнала
+  useEffect(() => {
+    // Ждём, пока результат посчитан именно для текущего профиля (запрос идёт с задержкой 200 мс)
+    if (!r || sim.isFetching || !pending.current || JSON.stringify(p) !== JSON.stringify(profile)) return;
+    const product = r.suppressed ? "Ничего не отправляем" : r.offer?.product_name ?? "—";
+    const channel = r.channels.map((c) => c.label.split(":")[0]).join(" + ") || "—";
+    const prev = log[0];
+    setLog([{ at: new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), change: pending.current, product, channel,
+      changed: !prev || prev.product !== product || prev.channel !== channel }, ...log].slice(0, 30));
+    pending.current = null;
+  }, [r, sim.isFetching, tick, p]); // eslint-disable-line react-hooks/exhaustive-deps
   const industry = catalog.data?.industries.find((i) => i.code === profile.industry);
   const groupKey = profile.group?.name === GROUPS.div.name ? "div" : "agro";
 
@@ -57,7 +116,7 @@ export function Simulator() {
       <Hint id="simulator" steps={[
         "Нажмите на компанию A, B, C или D — сразу откроется результат.",
         "В «Результате» видно продукт, текст, кому, канал и частоту, а ниже — почему выбрано именно это.",
-        "Хотите проверить «что если» — вернитесь в «Профиль» и поменяйте любой признак: результат пересчитается.",
+        "Хотите проверить «что если» — вернитесь в «Профиль» и поменяйте любой признак: результат пересчитается, а внизу «Результата» в журнале будет видно, что изменилось.",
       ]} />
       <div className="sticky top-0 z-20 -mx-4 mt-3 bg-bg/95 px-4 pb-2 pt-2 backdrop-blur">
         <Card className="flex items-center gap-3 px-4 py-3" onClick={() => setTab("result")}>
@@ -84,7 +143,7 @@ export function Simulator() {
             <div className="grid grid-cols-2 gap-2">
               {PRESETS.map((x) => (
                 <button key={x.id} type="button"
-                  onClick={() => { setPreset(x.id); setProfile(x.profile); setTab("result"); window.scrollTo({ top: 0 }); tg.haptic("light"); }}
+                  onClick={() => { pickPreset(x.id, x.title, x.profile); setTab("result"); window.scrollTo({ top: 0 }); tg.haptic("light"); }}
                   className={cx("card p-3 text-left transition-transform active:scale-[0.98]", preset === x.id && "ring-2 ring-brand")}>
                   <div className="text-[14px] font-medium">{x.id} · {x.title}</div>
                   <div className="mt-0.5 text-[12px] text-hint">{x.sub}</div>
@@ -186,6 +245,7 @@ export function Simulator() {
           {sim.isError && <ErrorState error={sim.error} onRetry={() => sim.refetch()} />}
           {!r && sim.isLoading && <Skeleton className="h-[420px] rounded-[18px]" />}
           {r && <DecisionView r={r} />}
+          <ChangeLog log={log} onClear={() => setLog([])} />
         </div>
       )}
 

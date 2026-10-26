@@ -128,8 +128,8 @@ export function ProfileScreen() {
           {me.user.telegram.length === 0 && <Row title="Не подключён" subtitle="Подключите, чтобы получать статусы и ответы в чате" />}
           {me.user.telegram.map((t) => (
             <Row key={t.id} left={<Send className="size-5 text-blue" />} title={t.username ? `@${t.username}` : "Аккаунт Telegram"} subtitle={`Подключён ${dateTime(t.linked_at)}`}
-              right={<Button size="sm" variant="danger" loading={unlink.isPending && unlink.variables === t.id}
-                onClick={async () => { if (await tg.confirm("Отвязать этот Telegram? Уведомления перестанут приходить.")) unlink.mutate(t.id); }}>Отвязать</Button>} />
+              right={me.user.role === "admin" ? <Button size="sm" variant="danger" loading={unlink.isPending && unlink.variables === t.id}
+                onClick={async () => { if (await tg.confirm("Отвязать этот Telegram? Уведомления перестанут приходить.")) unlink.mutate(t.id); }}>Отвязать</Button> : undefined} />
           ))}
         </List>
         {!inTelegram && (

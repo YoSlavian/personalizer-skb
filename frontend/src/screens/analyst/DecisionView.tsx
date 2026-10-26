@@ -1,4 +1,5 @@
 import { AlertTriangle, ArrowRightLeft, BellOff, Route, Zap } from "lucide-react";
+import { useState } from "react";
 import { OfferCard } from "../../components/Offer";
 import { Banner, Card, cx, Section, Tag } from "../../components/ui";
 import { num } from "../../lib/format";
@@ -14,6 +15,64 @@ function Mult({ v }: { v: number }) {
     <span className={cx("rounded-md px-1.5 py-0.5 text-[11px] font-medium", v > 1 ? "bg-lime text-ink" : "bg-brand-soft text-brand")}>
       ×{String(Math.round(v * 100) / 100).replace(".", ",")}
     </span>
+  );
+}
+
+const FACTORS = [
+  ["k_industry", "Отрасль"],
+  ["k_moment", "Момент"],
+  ["k_role", "Роль"],
+  ["k_structure", "Структура"],
+  ["k_source", "Источник роли"],
+] as const;
+
+/** Разбор выбора: продукты по убыванию балла, полоса — доля от лучшего, чипы — только сработавшие поправки. */
+function ScoreList({ r }: { r: DecisionResult }) {
+  const [all, setAll] = useState(false);
+  const max = Math.max(...r.rows.map((x) => x.total), 0.0001);
+  const rows = all ? r.rows : r.rows.slice(0, 5);
+  return (
+    <div className="space-y-2">
+      {rows.map((x, i) => {
+        const win = r.winner?.code === x.code;
+        const factors = FACTORS.filter(([k]) => x[k] !== 1);
+        return (
+          <Card key={x.code} className={cx("p-3.5", win && "ring-2 ring-brand", x.total === 0 && "opacity-60")}>
+            <div className="flex items-start gap-3">
+              <div className={cx("flex size-7 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold",
+                win ? "bg-brand text-white" : "bg-subtle text-hint")}>{i + 1}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-[15px] font-medium leading-snug">{x.name}</div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-display text-[17px] tabular leading-none">{num(x.total)}</div>
+                    <div className="text-[11px] text-hint">балл</div>
+                  </div>
+                </div>
+                {win && <div className="mt-1"><Tag tone="brand">Выбрано</Tag></div>}
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-subtle">
+                  <div className={cx("h-full rounded-full", win ? "bg-brand" : "bg-ink/40")} style={{ width: `${(x.total / max) * 100}%` }} />
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px]">
+                  <span className="rounded-md bg-subtle px-1.5 py-0.5 text-hint">база {num(x.base)}</span>
+                  {factors.length === 0 && <span className="text-hint">без поправок</span>}
+                  {factors.map(([k, label]) => (
+                    <span key={k} className="inline-flex items-center gap-1"><span className="text-hint">{label}</span><Mult v={x[k]} /></span>
+                  ))}
+                </div>
+                {x.why.length > 0 && <div className="mt-1.5 text-[12px] text-hint">Почему: {x.why.join(", ")}</div>}
+                {x.excluded_reason && <div className="mt-1.5 text-[12px] text-brand">Исключён: {x.excluded_reason}</div>}
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+      {r.rows.length > 5 && (
+        <button type="button" onClick={() => setAll(!all)} className="w-full py-2 text-[14px] font-medium text-link">
+          {all ? "Свернуть" : `Показать все продукты (${r.rows.length})`}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -100,37 +159,11 @@ export function DecisionView({ r, variant }: { r: DecisionResult; variant?: "tes
       </Section>
 
       <Section title="Почему именно это предложение">
-        <Card className="overflow-hidden">
-          <p className="px-4 pt-3 text-[12px] text-hint">Скор = склонность × доход (AS IS) × K отрасли × K момента × K роли × K структуры × вес источника роли. Нулевой коэффициент исключает продукт.</p>
-          <div className="mt-2 overflow-x-auto no-scrollbar">
-            <table className="w-full min-w-[520px] text-[13px]">
-              <thead>
-                <tr className="text-left text-[11px] uppercase text-hint">
-                  <th className="px-4 py-2 font-medium">Продукт</th><th className="py-2 font-medium">AS IS</th><th className="py-2 font-medium">Отр.</th>
-                  <th className="py-2 font-medium">Момент</th><th className="py-2 font-medium">Роль</th><th className="py-2 font-medium">Стр.</th><th className="py-2 pr-4 text-right font-medium">Итог</th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.rows.slice(0, 8).map((x) => (
-                  <tr key={x.code} className={cx("border-t border-sep align-top", r.winner?.code === x.code && "bg-brand-soft", x.total === 0 && "opacity-55")}>
-                    <td className="px-4 py-2">
-                      <div className="font-medium">{x.name}</div>
-                      {x.why.length > 0 && <div className="text-[11px] text-hint">{x.why.join(", ")}</div>}
-                      {x.excluded_reason && <div className="text-[11px] text-hint">{x.excluded_reason}</div>}
-                    </td>
-                    <td className="py-2 tabular">{num(x.base)}</td>
-                    <td className="py-2"><Mult v={x.k_industry} /></td>
-                    <td className="py-2"><Mult v={x.k_moment} /></td>
-                    <td className="py-2"><Mult v={x.k_role} />{x.k_source !== 1 && <> <Mult v={x.k_source} /></>}</td>
-                    <td className="py-2"><Mult v={x.k_structure} /></td>
-                    <td className="py-2 pr-4 text-right font-medium tabular">{num(x.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="px-4 pb-3 pt-2 text-[12px] text-hint">Фильтры до выбора: отказ от коммуникаций, лимиты частоты, 152-ФЗ, валютное законодательство. Коэффициенты стартовые, калибруются на пилоте.</p>
-        </Card>
+        <ScoreList r={r} />
+        <p className="mt-2 px-1 text-[12px] text-hint">
+          Балл = базовый скор оптимизатора (склонность × доход) × поправки. Зелёные усиливают продукт, красные ослабляют, «×0» — исключает.
+          До выбора работают фильтры: отказ от коммуникаций, лимиты частоты, 152-ФЗ, валютное законодательство.
+        </p>
       </Section>
     </div>
   );

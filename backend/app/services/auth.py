@@ -21,6 +21,7 @@ _settings = get_settings()
 login_limiter = SlidingWindowLimiter(_settings.login_attempts_per_window, _settings.login_window_seconds)
 ip_login_limiter = SlidingWindowLimiter(_settings.login_attempts_per_window * 6, _settings.login_window_seconds)
 LINK_CODE_TTL = timedelta(minutes=15)
+PUBLIC_DEMO_ADMIN = "admin@demo.local"
 
 
 @dataclass
@@ -52,6 +53,10 @@ async def login(session: AsyncSession, email: str, password: str, *, ip: str | N
         wait = limiter.blocked(k)
         if wait:
             raise TooManyRequests("Слишком много попыток входа. Попробуйте позже", retry_after=int(wait) + 1)
+    s = get_settings()
+    if s.is_production and s.demo_mode and email == PUBLIC_DEMO_ADMIN:
+        # Пароль демо-учёток публичный: вход демо-администратором на сервере закрыт, для администрирования — ADMIN_EMAIL
+        raise Unauthorized("Неверный email или пароль", code="invalid_credentials")
     user = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if not verify_password(password, user.password_hash if user else None) or not user or not user.is_active:
         login_limiter.hit(key)

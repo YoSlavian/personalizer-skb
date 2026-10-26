@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-from app.api.deps import DB, Auth, CurrentUser, paginated, reload
+from app.api.deps import DB, Admin, Auth, CurrentUser, paginated, reload
 from app.api.serializers import notification_out, user_out
 from app.config import get_settings
 from app.demo_accounts import ensure_not_public_demo
@@ -72,7 +72,7 @@ async def telegram_link_code(user: CurrentUser, db: DB) -> dict:
 
 
 @router.delete("/me/telegram/{link_id}")
-async def telegram_unlink(link_id: int, user: CurrentUser, db: DB) -> dict:
+async def telegram_unlink(link_id: int, user: Admin, db: DB) -> dict:
     await unlink_telegram(db, user, link_id)
     await db.commit()
     return user_out(await reload(db, User, user.id))

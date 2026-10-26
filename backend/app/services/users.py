@@ -67,6 +67,34 @@ async def managers(session: AsyncSession) -> list[User]:
     return list((await session.execute(select(User).where(User.role == UserRole.manager, User.is_active.is_(True)).order_by(User.full_name))).scalars())
 
 
+async def ensure_bootstrap_admin(session: AsyncSession) -> str | None:
+    """Личный администратор из ADMIN_EMAIL / ADMIN_PASSWORD. Пароль хранится только у хостинга; смена переменной меняет пароль."""
+    from app.config import get_settings
+    from app.models import UserSettings
+    from app.security.passwords import verify_password
+
+    s = get_settings()
+    if not s.admin_email or not s.admin_password:
+        return None
+    email, password = s.admin_email.strip().lower(), s.admin_password.get_secret_value()
+    if len(password) < 12 or validate_password_strength(password):
+        return "ADMIN_PASSWORD слишком простой: нужно не меньше 12 символов, буквы и цифры"
+    user = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
+    if user is None:
+        user = User(email=email, full_name=s.admin_name, role=UserRole.admin, password_hash=hash_password(password))
+        user.settings = UserSettings()
+        session.add(user)
+        await session.flush()
+        audit(session, actor_id=user.id, action="admin.bootstrap", entity_type="user", entity_id=user.id)
+    else:
+        user.role, user.is_active = UserRole.admin, True
+        if not verify_password(password, user.password_hash):
+            user.password_hash = hash_password(password)
+            audit(session, actor_id=user.id, action="admin.password_rotated", entity_type="user", entity_id=user.id)
+    await session.commit()
+    return None
+
+
 async def create_user(session: AsyncSession, actor: User, *, email: str, full_name: str, role: UserRole, password: str,
                       org_id: int | None, position: Position | None, ip: str | None = None) -> User:
     email = email.strip().lower()
