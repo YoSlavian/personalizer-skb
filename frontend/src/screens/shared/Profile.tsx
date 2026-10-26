@@ -166,6 +166,8 @@ export function ProfileScreen() {
         </Section>
       )}
 
+      {/* Список привязок нужен админу (отвязать) и в браузере (подключить бота); в Mini App остальным он ни к чему */}
+      {(me.user.role === "admin" || !inTelegram) && (
       <Section title="Telegram">
         <List>
           {me.user.telegram.length === 0 && <Row title="Не подключён" subtitle="Подключите, чтобы получать статусы и ответы в чате" />}
@@ -194,6 +196,7 @@ export function ProfileScreen() {
           </div>
         )}
       </Section>
+      )}
 
       <Section title="О приложении">
         <List>
