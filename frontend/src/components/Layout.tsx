@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { Bell, BarChart3, ClipboardList, FileText, Home, SlidersHorizontal, UserPlus, UserRound, Users, WifiOff } from "lucide-react";
-import { type ReactNode, useEffect, useMemo } from "react";
+import { Bell, BarChart3, ClipboardList, FileText, Home, Moon, SlidersHorizontal, Sun, UserPlus, UserRound, Users, WifiOff } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useMe } from "../auth/AuthProvider";
 import { get } from "../lib/api";
 import { useOnline, useSlowNetwork } from "../lib/hooks";
 import { tg } from "../lib/telegram";
+import { isDarkNow, THEME_EVENT, toggleTheme } from "../lib/theme";
 import type { Role } from "../lib/types";
 import { cx } from "./ui";
 
@@ -118,15 +119,36 @@ export function AppShell() {
 export function Screen({ title, subtitle, right, children }: { title: ReactNode; subtitle?: ReactNode; right?: ReactNode; children: ReactNode }) {
   return (
     <div className="animate-fade-up pt-safe">
-      <header className="flex items-end gap-3 pb-1 pt-5">
+      <header className="flex items-start gap-3 pb-1 pt-5">
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-[26px] leading-[1.1] tracking-[-0.01em]">{title}</h1>
           {subtitle && <p className="mt-1 text-[14px] text-hint">{subtitle}</p>}
         </div>
-        {right}
+        <div className="flex shrink-0 items-center gap-2">
+          {right}
+          <ThemeButton />
+        </div>
       </header>
       {children}
     </div>
+  );
+}
+
+/** Смена оформления в правом верхнем углу каждого экрана (светлая ↔ тёмная). */
+export function ThemeButton() {
+  const [dark, setDark] = useState(isDarkNow);
+  useEffect(() => {
+    const sync = () => setDark(isDarkNow());
+    window.addEventListener(THEME_EVENT, sync);
+    const off = tg.on("themeChanged", sync);
+    return () => { window.removeEventListener(THEME_EVENT, sync); off(); };
+  }, []);
+  return (
+    <button type="button" onClick={() => { toggleTheme(); tg.haptic("select"); }}
+      aria-label={dark ? "Включить светлую тему" : "Включить тёмную тему"} title={dark ? "Светлая тема" : "Тёмная тема"}
+      className="flex size-10 items-center justify-center rounded-2xl bg-surface shadow-[var(--shadow)] active:scale-95">
+      {dark ? <Sun className="size-5" /> : <Moon className="size-5" />}
+    </button>
   );
 }
 

@@ -37,4 +37,18 @@ export function setThemeMode(mode: ThemeMode): void {
     /* без хранилища тема действует до перезапуска */
   }
   applyThemeMode(mode);
+  window.dispatchEvent(new Event(THEME_EVENT));
+}
+
+/** Событие смены темы: кнопка в шапке и переключатель в профиле остаются согласованными. */
+export const THEME_EVENT = "app-theme";
+
+/** Тёмная ли тема сейчас на экране — с учётом Telegram и системы, если выбрано «как в Telegram». */
+export function isDarkNow(): boolean {
+  return getComputedStyle(document.documentElement).colorScheme.includes("dark");
+}
+
+/** Кнопка в шапке: переключает на противоположную видимой сейчас теме. */
+export function toggleTheme(): void {
+  setThemeMode(isDarkNow() ? "light" : "dark");
 }
