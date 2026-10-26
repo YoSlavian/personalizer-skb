@@ -131,7 +131,6 @@ function DemoList({ onPick, busyEmail }: { onPick: (email: string) => void; busy
           );
         })}
       </div>
-      <p className="mt-2 px-1 text-[12px] text-hint">Демо-режим: компании, люди и суммы демонстрационные.</p>
     </div>
   );
 }

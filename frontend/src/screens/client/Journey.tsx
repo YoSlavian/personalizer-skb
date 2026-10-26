@@ -41,7 +41,7 @@ function calcSummary(product: string, amountMln: number, term: number): { main: 
     return { main: money(Math.round(amount * 0.9)), label: "Получите сразу (90%)", note: `Комиссия ≈ ${money(fee)} за ${term * 30} дней отсрочки` };
   }
   const principal = r.kind === "leasing" ? amount * 0.9 : amount;
-  return { main: `${money(Math.round(annuity(principal, term, r.rate)))}/мес.`, label: r.kind === "leasing" ? "Лизинговый платёж" : "Ежемесячный платёж", note: `${r.label}: ${(r.rate * 100).toFixed(1).replace(".", ",")}% · расчёт условный` };
+  return { main: `${money(Math.round(annuity(principal, term, r.rate)))}/мес.`, label: r.kind === "leasing" ? "Лизинговый платёж" : "Ежемесячный платёж", note: `${r.label}: ${(r.rate * 100).toFixed(1).replace(".", ",")}%` };
 }
 
 export function Journey() {
@@ -371,7 +371,7 @@ export function Journey() {
       {me.demo_mode && session && (
         <div className="mt-6">
           <button type="button" onClick={() => setShowMetrics((v) => !v)} className="flex items-center gap-1.5 text-[13px] text-hint">
-            <Sparkles className="size-3.5" /> Метрики сессии (демо) · адаптация {session.adapt ? "включена" : "выключена"}
+            <Sparkles className="size-3.5" /> Метрики сессии · адаптация {session.adapt ? "включена" : "выключена"}
           </button>
           {showMetrics && (
             <Card className="mt-2 p-3 text-[13px] animate-fade">

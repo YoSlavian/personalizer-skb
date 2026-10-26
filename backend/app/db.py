@@ -5,6 +5,7 @@ from pathlib import Path
 from sqlalchemy import MetaData, event
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
 
@@ -34,6 +35,9 @@ def like_pattern(search: str) -> str:
 def _make_engine(url: str) -> AsyncEngine:
     settings = get_settings()
     kwargs: dict = {"echo": settings.sql_echo, "pool_pre_ping": True}
+    if settings.on_vercel:
+        # Экземпляр функции замораживается между запросами — открытые соединения не переживают паузу
+        kwargs["poolclass"] = NullPool
     if url.startswith("sqlite"):
         db_path = url.split("///", 1)[-1]
         if db_path and db_path != ":memory:":

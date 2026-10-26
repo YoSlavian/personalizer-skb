@@ -111,7 +111,7 @@ export function AnalystHome() {
               </Card>
             </div>
           </Section>
-          <p className="mt-4 px-1 text-[12px] text-hint">{a.data.disclaimer} Рандомизация A/B — на уровне группы компаний.</p>
+          <p className="mt-4 px-1 text-[12px] text-hint">Рандомизация A/B — на уровне группы компаний.</p>
         </>
       )}
     </Screen>

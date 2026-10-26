@@ -50,3 +50,12 @@ def test_alembic_migrations_build_same_schema_as_models():
     assert {fk["referred_table"] for fk in fks} >= {"organizations", "users", "communications"}
     checks = {c["name"] for c in insp.get_check_constraints("applications")}
     assert any("amount_positive" in (c or "") for c in checks)
+
+
+def test_hosting_database_urls_become_asyncpg():
+    from app.config import asyncpg_url
+
+    neon = "postgresql://u:p@ep-x.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    assert asyncpg_url(neon) == "postgresql+asyncpg://u:p@ep-x.eu-central-1.aws.neon.tech/neondb?ssl=require"
+    assert asyncpg_url("postgres://u:p@h:5432/db") == "postgresql+asyncpg://u:p@h:5432/db"
+    assert asyncpg_url("sqlite+aiosqlite:///x.db") == "sqlite+aiosqlite:///x.db"

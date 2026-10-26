@@ -8,6 +8,26 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
+# Параметры libpq, которых не понимает asyncpg; TLS задаётся его собственным параметром ssl
+_LIBPQ_ONLY = {"sslmode", "channel_binding"}
+
+
+def asyncpg_url(v: str) -> str:
+    """Хостинги (Render, Neon, Heroku) выдают postgres://… для libpq — приложению нужен asyncpg."""
+    for prefix in ("postgres://", "postgresql://"):
+        if v.startswith(prefix):
+            v = "postgresql+asyncpg://" + v[len(prefix):]
+            break
+    if not v.startswith("postgresql+asyncpg://") or "?" not in v:
+        return v
+    base, query = v.split("?", 1)
+    params = [p for p in query.split("&") if p]
+    ssl = any(p.split("=", 1)[0] == "sslmode" and p.split("=", 1)[-1] in ("require", "verify-ca", "verify-full") for p in params)
+    kept = [p for p in params if p.split("=", 1)[0] not in _LIBPQ_ONLY]
+    if ssl and not any(p.startswith("ssl=") for p in kept):
+        kept.append("ssl=require")
+    return base + ("?" + "&".join(kept) if kept else "")
+
 
 class Settings(BaseSettings):
     """Конфигурация из переменных окружения (.env). Секреты не имеют значений по умолчанию."""
@@ -69,18 +89,24 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def _async_driver(cls, v: str) -> str:
-        # Хостинги (Render, Railway, Heroku) выдают postgres://… без драйвера — приложению нужен asyncpg
-        for prefix in ("postgres://", "postgresql://"):
-            if v.startswith(prefix):
-                return "postgresql+asyncpg://" + v[len(prefix):]
-        return v
+        return asyncpg_url(v)
 
     @model_validator(mode="after")
     def _platform_url(self) -> "Settings":
-        # Render сам сообщает внешний HTTPS-адрес сервиса
+        # Render и Vercel сами сообщают внешний адрес сервиса
         if not self.public_base_url and os.environ.get("RENDER_EXTERNAL_URL"):
             self.public_base_url = os.environ["RENDER_EXTERNAL_URL"]
+        if not self.public_base_url and os.environ.get("VERCEL_PROJECT_PRODUCTION_URL"):
+            self.public_base_url = "https://" + os.environ["VERCEL_PROJECT_PRODUCTION_URL"]
+        # Neon на Vercel: прямое подключение без PgBouncer — у asyncpg не будет конфликтов подготовленных запросов
+        if self.on_vercel and os.environ.get("DATABASE_URL_UNPOOLED"):
+            self.database_url = asyncpg_url(os.environ["DATABASE_URL_UNPOOLED"])
         return self
+
+    @property
+    def on_vercel(self) -> bool:
+        """Бессерверный запуск: нет постоянного процесса, фоновые циклы не работают."""
+        return os.environ.get("VERCEL") == "1"
 
     @property
     def webhook_secret(self) -> str | None:

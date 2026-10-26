@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import logging
+import random
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -44,6 +45,21 @@ def _error(status: int, code: str, message: str, details=None, headers=None) -> 
     if details is not None:
         body["error"]["details"] = details
     return JSONResponse(body, status_code=status, headers=headers)
+
+
+async def _flush_outbox(app: FastAPI) -> None:
+    """Vercel: фонового цикла нет, поэтому уведомления, созданные запросом, отправляются до его завершения."""
+    rt = getattr(app.state, "bot_runtime", None)
+    if rt is None or not get_settings().notifier_enabled:
+        return
+    from app.bot.outbox import cleanup_processed_updates, process_once
+
+    try:
+        await process_once(rt.bot)
+        if random.random() < 0.01:
+            await cleanup_processed_updates()
+    except Exception:  # noqa: BLE001
+        log.exception("Ошибка доставки уведомлений")
 
 
 @asynccontextmanager
@@ -124,6 +140,8 @@ def create_app() -> FastAPI:
                 return _error(429, "too_many_requests", "Слишком много запросов. Подождите немного", {"retry_after": int(wait) + 1},
                               {"Retry-After": str(int(wait) + 1)})
         response = await call_next(request)
+        if s.on_vercel and request.method != "GET" and path.startswith("/api/"):
+            await _flush_outbox(request.app)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         # Демо интернет-банка — самодостаточная статическая страница со встроенными стилями и скриптами

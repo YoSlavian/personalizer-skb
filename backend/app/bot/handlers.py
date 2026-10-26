@@ -29,7 +29,6 @@ log = logging.getLogger("bot")
 router = Router(name="main")
 
 ROLE_TITLES = {UserRole.client: "клиент", UserRole.manager: "клиентский менеджер", UserRole.analyst: "аналитик СКБ", UserRole.admin: "администратор"}
-DEMO_NOTE = "\n\n<i>Демо-режим: компании и суммы демонстрационные.</i>"
 
 
 class TaskDone(StatesGroup):
@@ -56,7 +55,7 @@ async def _greet(message: Message, user: User) -> None:
     )
     if not kb.miniapp_url():
         text += "\n\n⚠️ Адрес Mini App не настроен (PUBLIC_BASE_URL с HTTPS). Доступны статусы и задачи в чате."
-    await message.answer(text + DEMO_NOTE, reply_markup=kb.main_menu(user.role))
+    await message.answer(text, reply_markup=kb.main_menu(user.role))
     btn = kb.open_app_button()
     if btn:
         await message.answer("Откройте приложение:", reply_markup=kb.inline([btn]))
@@ -87,14 +86,14 @@ async def cmd_start(message: Message, command: CommandObject, db: AsyncSession, 
     )
     markup = None
     if get_settings().demo_mode:
-        text += "\n\n<b>Демо-режим:</b> выберите роль ниже."
+        text += "\n\nИли выберите роль ниже."
         markup = kb.demo_personas()
         btn = kb.open_app_button("Открыть приложение")
         if btn:
             markup.inline_keyboard.insert(0, [btn])
     elif kb.open_app_button():
         markup = kb.inline([kb.open_app_button()])
-    await message.answer(text + DEMO_NOTE, reply_markup=markup)
+    await message.answer(text, reply_markup=markup)
 
 
 @router.callback_query(F.data.startswith("persona:"))

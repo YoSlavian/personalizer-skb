@@ -58,18 +58,29 @@ class BotRuntime:
             await self.bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="Приложение", web_app=WebAppInfo(url=url)))
         log.info("Бот @%s готов, Mini App: %s", me.username, url or "не настроен (нужен PUBLIC_BASE_URL с HTTPS)")
 
+    async def register_webhook(self) -> str:
+        if not self.settings.public_base_url or not self.settings.webhook_secret:
+            raise RuntimeError("Для webhook нужен PUBLIC_BASE_URL с HTTPS")
+        url = f"{self.settings.public_base_url.rstrip('/')}/api/telegram/webhook"
+        await self.bot.set_webhook(url=url, secret_token=self.settings.webhook_secret, allowed_updates=self.dp.resolve_used_update_types())
+        return url
+
     async def start(self) -> list[asyncio.Task]:
         tasks: list[asyncio.Task] = []
+        if self.settings.on_vercel:
+            # Команды, меню и webhook регистрируются при сборке (scripts/vercel_build.py), а не на каждом холодном старте;
+            # уведомления отправляются в конце запросов, которые их создают (фоновых циклов на Vercel нет)
+            try:
+                if not self.settings.telegram_bot_username:
+                    self.settings.telegram_bot_username = (await self.bot.get_me()).username
+                self.running = True
+            except Exception as e:  # noqa: BLE001
+                log.error("Бот недоступен: %s", e)
+            return tasks
         try:
             await self._setup()
             if self.settings.telegram_mode == "webhook":
-                if not self.settings.public_base_url or not self.settings.webhook_secret:
-                    raise RuntimeError("Для webhook нужен PUBLIC_BASE_URL с HTTPS")
-                await self.bot.set_webhook(
-                    url=f"{self.settings.public_base_url.rstrip('/')}/api/telegram/webhook",
-                    secret_token=self.settings.webhook_secret,
-                    allowed_updates=self.dp.resolve_used_update_types(),
-                )
+                await self.register_webhook()
             else:
                 await self.bot.delete_webhook(drop_pending_updates=False)
                 tasks.append(asyncio.create_task(self.dp.start_polling(self.bot, handle_signals=False, close_bot_session=False,

@@ -35,6 +35,8 @@ export interface TelegramWebApp {
   viewportStableHeight: number;
   ready(): void;
   expand(): void;
+  requestFullscreen?(): void;
+  disableVerticalSwipes?(): void;
   close(): void;
   isVersionAtLeast(v: string): boolean;
   setHeaderColor(c: string): void;
@@ -98,8 +100,14 @@ export const tg = {
   ready(): void {
     safe(() => getWebApp()?.ready());
   },
+  /** На всю высоту; на телефоне — полноэкранный режим без шторки Telegram (клиенты 8.0+). */
   expand(): void {
-    safe(() => getWebApp()?.expand());
+    const wa = getWebApp();
+    safe(() => wa?.expand());
+    if (!wa || !atLeast("8.0") || !["ios", "android"].includes(wa.platform)) return;
+    safe(() => wa.requestFullscreen?.());
+    // Свайп вниз по списку не должен сворачивать приложение
+    safe(() => wa.disableVerticalSwipes?.());
   },
   applyTheme(): void {
     const wa = getWebApp();

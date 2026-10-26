@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Info, KeyRound, LogOut, Repeat, Send, ShieldCheck } from "lucide-react";
+import { ExternalLink, Info, KeyRound, LogOut, Repeat, Send } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useAuth, useMe } from "../../auth/AuthProvider";
 import { Screen } from "../../components/Layout";
@@ -53,7 +53,7 @@ function AccountLogin({ onDone }: { onDone: () => void }) {
         <input id="acc-pass" className={inputCls} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </Field>
       <Button type="submit" block loading={busy} disabled={!email || !password}>Войти</Button>
-      <p className="text-[12px] text-hint">Этот Telegram привяжется к учётке. Вернуться к демо-роли можно здесь же.</p>
+      <p className="text-[12px] text-hint">Этот Telegram привяжется к учётке. Вернуться к прежней роли можно здесь же.</p>
     </form>
   );
 }
@@ -200,19 +200,17 @@ export function ProfileScreen() {
 
       <Section title="О приложении">
         <List>
-          <Row left={<Info className="size-5 text-hint" />} title="Персонализатор СКБ 1.0" subtitle="MVP · команда 13 · Rizz Banking" />
-          <Row left={<ShieldCheck className="size-5 text-hint" />} title="Данные" subtitle="Синтетические датасеты кейса и демо-профили. Роль храним как должность, без ФИО." />
-        </List>
+          <Row left={<Info className="size-5 text-hint" />} title="Персонализатор СКБ 1.0" subtitle="MVP · команда 13 · Rizz Banking" />        </List>
       </Section>
 
       <div className="mt-5 space-y-2">
         {me.demo_mode && inTelegram && demo.data && (
-          <Button block variant="ghost" icon={<Repeat className="size-4" />} onClick={() => setPersonaOpen(true)}>Сменить демо-роль</Button>
+          <Button block variant="ghost" icon={<Repeat className="size-4" />} onClick={() => setPersonaOpen(true)}>Сменить роль</Button>
         )}
         {!inTelegram && <Button block variant="danger" icon={<LogOut className="size-4" />} onClick={() => logout()}>Выйти</Button>}
       </div>
 
-      <Sheet open={personaOpen} onClose={() => setPersonaOpen(false)} title="Демо-роль">
+      <Sheet open={personaOpen} onClose={() => setPersonaOpen(false)} title="Роль">
         <div className="space-y-2">
           {demo.data?.accounts.map((a) => (
             <Button key={a.email} block variant={a.email === me.user.email ? "secondary" : "ghost"} loading={busyPersona === a.email} disabled={!!busyPersona}
