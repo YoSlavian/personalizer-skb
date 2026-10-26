@@ -8,7 +8,9 @@ import { ToastProvider } from "./components/toast";
 import { Button, ErrorState, Spinner } from "./components/ui";
 import { ApiError } from "./lib/api";
 import { tg } from "./lib/telegram";
+import { applyThemeMode } from "./lib/theme";
 import type { Role } from "./lib/types";
+import { UsersScreen } from "./screens/admin/Users";
 import { AnalystHome } from "./screens/analyst/AnalystHome";
 import { Campaign } from "./screens/analyst/Campaign";
 import { ClientDetail } from "./screens/analyst/ClientDetail";
@@ -80,6 +82,7 @@ function RoleRoutes({ role }: { role: Role }) {
         {staff && <Route path="clients/:id" element={<ClientDetail />} />}
         {staff && <Route path="simulator" element={<Simulator />} />}
         {analyst && <Route path="campaign" element={<Campaign />} />}
+        {role === "admin" && <Route path="users" element={<UsersScreen />} />}
         <Route path="cabinet" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Route>
@@ -107,7 +110,7 @@ function Gate() {
     }
   }, [state.status, readySent]);
   useEffect(() => {
-    const off = tg.on("themeChanged", () => tg.applyTheme());
+    const off = tg.on("themeChanged", () => { tg.applyTheme(); applyThemeMode(); });
     return off;
   }, []);
 

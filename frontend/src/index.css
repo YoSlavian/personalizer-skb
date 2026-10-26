@@ -53,6 +53,30 @@
   color-scheme: dark;
 }
 
+/* Тема, выбранная пользователем в профиле, важнее темы Telegram. Тёмная — в стиле Альфа-Босс: чёрный фон, графитовые карточки */
+:root[data-mode="dark"] {
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --text: #ffffff;
+  --hint: #9a9aa3;
+  --link: #6ea2ff;
+  --separator: rgba(255, 255, 255, 0.08);
+  --danger: #ff5a4f;
+  --shadow: none;
+  color-scheme: dark;
+}
+:root[data-mode="light"] {
+  --bg: #f1f1f4;
+  --surface: #ffffff;
+  --text: #0b0b0b;
+  --hint: #85858d;
+  --link: #2b72fe;
+  --separator: rgba(11, 11, 11, 0.08);
+  --danger: #e5372b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  color-scheme: light;
+}
+
 @theme inline {
   --font-sans: "Styrene B", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: "Styrene A", "Styrene B", ui-sans-serif, system-ui, sans-serif;

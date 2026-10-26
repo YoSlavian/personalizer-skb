@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Bell, BarChart3, ClipboardList, FileText, Home, SlidersHorizontal, UserRound, Users, WifiOff } from "lucide-react";
+import { Bell, BarChart3, ClipboardList, FileText, Home, SlidersHorizontal, UserPlus, UserRound, Users, WifiOff } from "lucide-react";
 import { type ReactNode, useEffect, useMemo } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useMe } from "../auth/AuthProvider";
@@ -33,6 +33,7 @@ export const TABS: Record<Role, Tab[]> = {
   ],
   admin: [
     { to: "/", label: "Симулятор", icon: SlidersHorizontal },
+    { to: "/users", label: "Участники", icon: UserPlus },
     { to: "/pilot", label: "Пилот A/B", icon: BarChart3 },
     { to: "/clients", label: "Клиенты", icon: Users },
     { to: "/profile", label: "Профиль", icon: UserRound },

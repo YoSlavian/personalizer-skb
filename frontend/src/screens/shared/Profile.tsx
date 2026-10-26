@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Info, LogOut, Repeat, Send, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { ExternalLink, Info, KeyRound, LogOut, Repeat, Send, ShieldCheck } from "lucide-react";
+import { type FormEvent, useState } from "react";
 import { useAuth, useMe } from "../../auth/AuthProvider";
 import { Screen } from "../../components/Layout";
 import { useToast } from "../../components/toast";
-import { Banner, Button, List, Row, Section, Sheet, Spinner, Toggle } from "../../components/ui";
+import { Banner, Button, Field, inputCls, List, Row, Section, Segmented, Sheet, Spinner, Toggle } from "../../components/ui";
+import { getThemeMode, setThemeMode, type ThemeMode } from "../../lib/theme";
 import { api, ApiError, get, patch, post, put } from "../../lib/api";
 import { dateTime } from "../../lib/format";
 import { tg } from "../../lib/telegram";
@@ -15,6 +16,49 @@ const SOURCE = { crm: "из CRM", inferred: "выведена по правам 
 
 type Demo = { accounts: { email: string; title: string; description: string }[] };
 
+/** Вход личной учётной записью (например, администратора) из Telegram: этот Telegram привязывается к ней. */
+function AccountLogin({ onDone }: { onDone: () => void }) {
+  const { linkTelegram } = useAuth();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!open) {
+    return (
+      <Button className="mt-3" block variant="secondary" icon={<KeyRound className="size-4" />} onClick={() => setOpen(true)}>
+        Войти по логину и паролю
+      </Button>
+    );
+  }
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await linkTelegram(email.trim(), password);
+      toast.show("Вы вошли по учётной записи");
+      onDone();
+    } catch (err) {
+      toast.show(err instanceof ApiError ? err.message : "Не удалось войти", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={submit} className="card mt-3 space-y-3 p-4" noValidate>
+      <div className="text-[15px] font-medium">Личная учётная запись</div>
+      <Field label="Email" htmlFor="acc-email">
+        <input id="acc-email" className={inputCls} type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </Field>
+      <Field label="Пароль" htmlFor="acc-pass">
+        <input id="acc-pass" className={inputCls} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      </Field>
+      <Button type="submit" block loading={busy} disabled={!email || !password}>Войти</Button>
+      <p className="text-[12px] text-hint">Этот Telegram привяжется к учётке. Вернуться к демо-роли можно здесь же.</p>
+    </form>
+  );
+}
+
 export function ProfileScreen() {
   const me = useMe();
   const { inTelegram, logout, refreshMe, demoPersona } = useAuth();
@@ -24,6 +68,7 @@ export function ProfileScreen() {
   const home = useQuery({ queryKey: ["cabinet-home"], queryFn: () => get<CabinetHome>("/cabinet/home"), enabled: client, staleTime: 60_000 });
   const demo = useQuery({ queryKey: ["demo-accounts"], queryFn: () => get<Demo>("/demo/accounts"), enabled: me.demo_mode, retry: false, staleTime: Infinity });
   const [personaOpen, setPersonaOpen] = useState(false);
+  const [theme, setTheme] = useState<ThemeMode>(getThemeMode);
   const [busyPersona, setBusyPersona] = useState<string | null>(null);
   const [link, setLink] = useState<{ code: string; deep_link: string | null; expires_at: string; bot_username: string | null } | null>(null);
 
@@ -152,6 +197,11 @@ export function ProfileScreen() {
         )}
       </Section>
 
+      <Section title="Оформление">
+        <Segmented ariaLabel="Тема" value={theme} onChange={(v) => { setTheme(v); setThemeMode(v); tg.haptic("select"); }}
+          options={[{ value: "auto", label: "Как в Telegram" }, { value: "light", label: "Светлая" }, { value: "dark", label: "Тёмная" }]} />
+      </Section>
+
       <Section title="О приложении">
         <List>
           <Row left={<Info className="size-5 text-hint" />} title="Персонализатор СКБ 1.0" subtitle="MVP · команда 13 · Rizz Banking" />
@@ -176,6 +226,7 @@ export function ProfileScreen() {
             </Button>
           ))}
         </div>
+        <AccountLogin onDone={() => setPersonaOpen(false)} />
       </Sheet>
     </Screen>
   );

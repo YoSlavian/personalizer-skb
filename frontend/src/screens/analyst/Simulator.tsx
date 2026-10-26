@@ -128,9 +128,12 @@ export function Simulator() {
         </Card>
         <div className="mt-2">
           <Segmented ariaLabel="Раздел" value={tab} onChange={setTab}
-            options={[{ value: "profile", label: "Профиль" }, { value: "result", label: "Результат" }, ...(profile.structure === "group" ? [{ value: "group" as const, label: "Группа" }] : [])]} />
+            options={[{ value: "profile", label: "Профиль" }, { value: "result", label: "Результат" }, { value: "group", label: "Группа" }]} />
           {profile.structure === "group" && tab !== "group" && (
             <p className="mt-1 px-1 text-[12px] text-hint">Это группа компаний — во вкладке «Группа» видно, что предложить каждому юрлицу.</p>
+          )}
+          {profile.structure !== "group" && tab !== "group" && (
+            <p className="mt-1 px-1 text-[12px] text-hint">Самостоятельная компания. Как система работает с холдингами — во вкладке «Группа».</p>
           )}
         </div>
       </div>
@@ -251,9 +254,26 @@ export function Simulator() {
 
       {tab === "group" && (
         <div className="mt-3 animate-fade">
-          {plan.isError && <ErrorState error={plan.error} onRetry={() => plan.refetch()} />}
-          {plan.isLoading && <Skeleton className="h-[320px] rounded-[18px]" />}
-          {plan.data && <GroupPlanView plan={plan.data.plan} />}
+          {profile.structure !== "group" ? (
+            <Card className="p-4">
+              <div className="text-[16px] font-medium">Эта компания — самостоятельная</div>
+              <p className="mt-1 text-[14px] text-hint">
+                Для групп компаний (холдингов) система работает на двух уровнях: продукт группы — финдиректору головной компании
+                (единый остаток, общий лимит), а каждому юрлицу — продукт его отрасли без дублей. Отрасль группы определяется по доле
+                выручки ≥50%, на группу — не больше одного сообщения в неделю.
+              </p>
+              <Button className="mt-3" block onClick={() => pickPreset("A", PRESETS[0].title, PRESETS[0].profile)}>Показать на примере агрохолдинга (A)</Button>
+              <Button className="mt-2" block variant="ghost" onClick={() => set({ structure: "group", group: profile.group ?? GROUPS.agro })}>
+                Сделать эту компанию группой
+              </Button>
+            </Card>
+          ) : (
+            <>
+              {plan.isError && <ErrorState error={plan.error} onRetry={() => plan.refetch()} />}
+              {plan.isLoading && <Skeleton className="h-[320px] rounded-[18px]" />}
+              {plan.data && <GroupPlanView plan={plan.data.plan} />}
+            </>
+          )}
         </div>
       )}
     </Screen>
