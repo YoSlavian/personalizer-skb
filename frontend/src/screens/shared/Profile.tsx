@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Info, KeyRound, LogOut, Repeat, Send, ShieldCheck } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useAuth, useMe } from "../../auth/AuthProvider";
 import { Screen } from "../../components/Layout";
 import { useToast } from "../../components/toast";
-import { Banner, Button, Field, inputCls, List, Row, Section, Segmented, Sheet, Spinner, Toggle } from "../../components/ui";
-import { getThemeMode, setThemeMode, THEME_EVENT, type ThemeMode } from "../../lib/theme";
+import { Banner, Button, Field, inputCls, List, Row, Section, Sheet, Spinner, Toggle } from "../../components/ui";
 import { api, ApiError, get, patch, post, put } from "../../lib/api";
 import { dateTime } from "../../lib/format";
 import { tg } from "../../lib/telegram";
@@ -68,12 +67,6 @@ export function ProfileScreen() {
   const home = useQuery({ queryKey: ["cabinet-home"], queryFn: () => get<CabinetHome>("/cabinet/home"), enabled: client, staleTime: 60_000 });
   const demo = useQuery({ queryKey: ["demo-accounts"], queryFn: () => get<Demo>("/demo/accounts"), enabled: me.demo_mode, retry: false, staleTime: Infinity });
   const [personaOpen, setPersonaOpen] = useState(false);
-  const [theme, setTheme] = useState<ThemeMode>(getThemeMode);
-  useEffect(() => {
-    const sync = () => setTheme(getThemeMode());
-    window.addEventListener(THEME_EVENT, sync);
-    return () => window.removeEventListener(THEME_EVENT, sync);
-  }, []);
   const [busyPersona, setBusyPersona] = useState<string | null>(null);
   const [link, setLink] = useState<{ code: string; deep_link: string | null; expires_at: string; bot_username: string | null } | null>(null);
 
@@ -200,11 +193,6 @@ export function ProfileScreen() {
             )}
           </div>
         )}
-      </Section>
-
-      <Section title="Оформление">
-        <Segmented ariaLabel="Тема" value={theme} onChange={(v) => { setTheme(v); setThemeMode(v); tg.haptic("select"); }}
-          options={[{ value: "auto", label: "Как в Telegram" }, { value: "light", label: "Светлая" }, { value: "dark", label: "Тёмная" }]} />
       </Section>
 
       <Section title="О приложении">
