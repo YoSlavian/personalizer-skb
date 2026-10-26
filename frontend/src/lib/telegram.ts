@@ -118,11 +118,13 @@ export const tg = {
     }
     root.setAttribute("data-tg", wa.platform);
     root.setAttribute("data-theme", wa.colorScheme);
+    // Шапка и фон Telegram — в цвет фона приложения (палитра своя, от Telegram берём только светлая/тёмная)
+    const bg = wa.colorScheme === "dark" ? "#000000" : "#ececec";
     if (atLeast("6.1")) {
-      safe(() => wa.setHeaderColor("secondary_bg_color"));
-      safe(() => wa.setBackgroundColor("secondary_bg_color"));
+      safe(() => wa.setHeaderColor(bg));
+      safe(() => wa.setBackgroundColor(bg));
     }
-    if (atLeast("7.10")) safe(() => wa.setBottomBarColor?.("secondary_bg_color"));
+    if (atLeast("7.10")) safe(() => wa.setBottomBarColor?.(bg));
   },
   on(event: string, cb: () => void): () => void {
     const wa = getWebApp();

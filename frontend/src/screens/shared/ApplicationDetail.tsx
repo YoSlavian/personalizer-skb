@@ -1,15 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Lock, Send, UserRound } from "lucide-react";
+import { PaperPlaneRight } from "@phosphor-icons/react";
+import { Building2, ChatCircle, FileEdit, Info, Lock, UserRound } from "../../components/icons";
 import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useMe } from "../../auth/AuthProvider";
 import { Screen } from "../../components/Layout";
 import { useToast } from "../../components/toast";
-import { Banner, Button, cx, ErrorState, Field, inputCls, List, Row, Section, Sheet, Skeleton, StatusPill, Toggle } from "../../components/ui";
+import { Banner, Button, cx, ErrorState, Field, IconBadge, inputCls, List, Row, Section, Sheet, Skeleton, Spinner, StatusPill, Toggle } from "../../components/ui";
 import { ApiError, get, newIdempotencyKey, post } from "../../lib/api";
 import { date, dateTime, mln } from "../../lib/format";
 import { tg } from "../../lib/telegram";
 import type { ApplicationDetail as AppDetail, AppStatus } from "../../lib/types";
+import { ago } from "./AppRow";
 import { Timeline } from "./Timeline";
 
 type Action = { to: AppStatus; label: string; variant: "primary" | "secondary" | "danger" | "ghost"; needsComment?: boolean; confirm?: string; prompt?: string };
@@ -44,6 +46,17 @@ function actionsFor(role: string, status: AppStatus, isAuthor: boolean): Action[
     ];
   return [];
 }
+
+/** Шаги, которые заявке ещё предстоит пройти, — бледными точками в истории. */
+const FUTURE: Record<AppStatus, string[]> = {
+  draft: ["Отправлена", "На рассмотрении", "Решение"],
+  submitted: ["На рассмотрении", "Решение"],
+  in_review: ["Решение"],
+  needs_info: ["На рассмотрении", "Решение"],
+  approved: [],
+  declined: [],
+  cancelled: [],
+};
 
 export function ApplicationDetail() {
   const { id } = useParams();
@@ -101,36 +114,70 @@ export function ApplicationDetail() {
     status.mutate({ to: a.to });
   };
 
-  if (q.isLoading) return <div className="space-y-3 pt-6"><Skeleton className="h-8 w-1/2" /><Skeleton className="h-40 rounded-[18px]" /><Skeleton className="h-32 rounded-[18px]" /></div>;
+  if (q.isLoading)
+    return (
+      <div className="space-y-3 pt-safe" aria-busy="true" aria-label="Загрузка">
+        <div className="space-y-2 pt-5"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-4 w-1/3" /></div>
+        <Skeleton className="h-[132px] rounded-[22px]" />
+        <Skeleton className="h-[120px] rounded-[22px]" />
+        <Skeleton className="h-[160px] rounded-[22px]" />
+      </div>
+    );
   if (q.isError) return <div className="pt-6"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div>;
   const a = q.data!;
   const role = me.user.role;
   const staff = role !== "client";
   const actions = actionsFor(role, a.status, a.author?.id === me.user.id);
+  const closed = ["approved", "declined", "cancelled"].includes(a.status);
+  const longTitle = a.product_name.length > 18;
+  const canComment = !["cancelled"].includes(a.status) && role !== "analyst";
+  // Обещаем Telegram, только если он привязан и уведомления туда включены; иначе — уведомления в приложении
+  const viaTelegram = me.user.telegram.length > 0 && me.user.settings.notify_telegram;
 
   return (
-    <Screen title={a.product_name} subtitle={`${a.number} · создана ${date(a.created_at)}`} right={<StatusPill status={a.status} />}>
+    <Screen
+      title={<span lang="ru" className={cx("block hyphens-manual break-words", longTitle && "text-[26px]")}>{a.product_name}</span>}
+      subtitle={`${a.number} · создана ${date(a.created_at)}`}
+    >
+      {/* Сводка: сумма крупно, статус, срок и решение */}
+      <div className="card mt-4 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[13px] text-hint">Сумма</div>
+            <div className="mt-0.5 font-display text-[34px] leading-none tabular">{mln(a.amount_rub)}</div>
+          </div>
+          <StatusPill status={a.status} />
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-sep pt-3">
+          <div>
+            <div className="text-[12px] text-hint">Срок</div>
+            <div className="mt-0.5 font-display text-[18px] tabular">{a.term_months} мес.</div>
+          </div>
+          <div>
+            <div className="text-[12px] text-hint">{a.decided_at ? "Решение" : "Обновлена"}</div>
+            <div className="mt-0.5 whitespace-nowrap font-display text-[18px] tabular">{a.decided_at ? date(a.decided_at) : ago(a.updated_at, true)}</div>
+          </div>
+        </div>
+      </div>
+
       {a.status === "needs_info" && role === "client" && (
-        <div className="mt-4"><Banner tone="warn">Менеджеру нужны уточнения — ответьте в переписке ниже или кнопкой «Отправить уточнение».</Banner></div>
+        <div className="mt-3">
+          <Banner tone="warn" icon={<Info className="size-4" weight="fill" />}>Менеджеру нужны уточнения — ответьте в переписке</Banner>
+        </div>
       )}
       {a.status === "draft" && role === "client" && (
-        <div className="mt-4"><Banner tone="info">Это черновик: заявка ещё не отправлена. <button type="button" className="font-medium text-link" onClick={() => navigate(`/journey?product=${a.product_code}&draft=${a.id}`)}>Продолжить оформление</button></Banner></div>
+        <button type="button" onClick={() => navigate(`/journey?product=${a.product_code}&draft=${a.id}`)}
+          className="card mt-3 flex w-full items-center gap-3 p-3 pr-4 text-left transition-transform active:scale-[0.99]">
+          <IconBadge><FileEdit className="size-5" weight="fill" /></IconBadge>
+          <div className="min-w-0 flex-1">
+            <div className="text-[15px] font-medium">Продолжить оформление</div>
+            <div className="text-[13px] text-hint">Черновик ещё не отправлен</div>
+          </div>
+        </button>
       )}
-      <Section title="Параметры">
-        <List>
-          <Row title="Сумма" right={<span className="font-medium tabular">{mln(a.amount_rub)}</span>} />
-          <Row title="Срок" right={<span className="font-medium">{a.term_months} мес.</span>} />
-          {staff && <Row onClick={() => navigate(`/clients/${a.organization.id}`)} left={<Building2 className="size-5 text-hint" />} title={a.organization.name} subtitle={a.organization.industry_name} />}
-          <Row left={<UserRound className="size-5 text-hint" />} title={a.assignee ? a.assignee.full_name : "Менеджер ещё не назначен"} subtitle="Ответственный · клиентский менеджер"
-            right={staff && role !== "analyst" && a.assignee?.id !== me.user.id && !["approved", "declined", "cancelled"].includes(a.status)
-              ? <Button size="sm" variant="secondary" loading={assign.isPending} onClick={() => assign.mutate()}>Взять</Button> : undefined} />
-          {a.comment && <Row title="Комментарий клиента" subtitle={a.comment} />}
-          {a.decided_at && <Row title="Решение принято" right={<span className="text-[14px]">{dateTime(a.decided_at)}</span>} />}
-        </List>
-      </Section>
 
       {actions.length > 0 && (
-        <div className="mt-4 grid gap-2">
+        <div className="mt-3 grid gap-2">
           {actions.map((x) => (
             <Button key={x.to + x.label} variant={x.variant} block loading={status.isPending && status.variables?.to === x.to} disabled={status.isPending} onClick={() => run(x)}>
               {x.label}
@@ -139,34 +186,67 @@ export function ApplicationDetail() {
         </div>
       )}
 
+      <Section title="Участники">
+        <List>
+          {staff && (
+            <Row onClick={() => navigate(`/clients/${a.organization.id}`)} left={<IconBadge tone="neutral"><Building2 className="size-5" /></IconBadge>}
+              title={a.organization.name} subtitle={a.organization.industry_name} />
+          )}
+          <Row left={<IconBadge tone="neutral"><UserRound className="size-5" /></IconBadge>} title={a.assignee ? a.assignee.full_name : "Менеджер ещё не назначен"} subtitle="Клиентский менеджер"
+            right={staff && role !== "analyst" && a.assignee?.id !== me.user.id && !closed
+              ? <Button size="sm" variant="secondary" loading={assign.isPending} onClick={() => assign.mutate()}>Взять</Button> : undefined} />
+          {a.comment && <Row left={<IconBadge tone="neutral"><ChatCircle className="size-5" /></IconBadge>} title="Комментарий клиента" subtitle={a.comment} />}
+          {a.decided_at && <Row title="Решение принято" right={<span className="text-[14px] tabular text-hint">{dateTime(a.decided_at)}</span>} />}
+        </List>
+      </Section>
+
       <Section title="История">
-        <Timeline items={a.history} />
+        <Timeline items={a.history} future={FUTURE[a.status]} />
       </Section>
 
       <Section title="Переписка">
         <div className="space-y-2">
-          {a.comments.length === 0 && <p className="px-1 text-[14px] text-hint">Сообщений пока нет. Задайте вопрос — ответ придёт уведомлением в Telegram.</p>}
+          {a.comments.length === 0 && (
+            <div className="card px-4 py-5 text-center text-[14px] text-hint">Сообщений пока нет. {viaTelegram ? "Ответ придёт в Telegram" : "Ответ появится в уведомлениях"}</div>
+          )}
           {a.comments.map((c) => {
             const mine = c.author?.id === me.user.id;
             return (
-              <div key={c.id} className={cx("flex", mine ? "justify-end" : "justify-start")}>
-                <div className={cx("max-w-[85%] rounded-2xl px-3.5 py-2.5", c.internal ? "border border-dashed border-warning bg-[color-mix(in_srgb,var(--warning)_10%,var(--surface))]" : mine ? "bg-brand text-white" : "card")}>
-                  {c.internal && <div className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-[#b06f00]"><Lock className="size-3" /> Внутренний — клиент не видит</div>}
-                  <div className="whitespace-pre-wrap text-[14px]">{c.body}</div>
-                  <div className={cx("mt-1 text-[11px]", mine && !c.internal ? "text-white/75" : "text-hint")}>{c.author?.full_name ?? "Система"} · {dateTime(c.created_at)}</div>
+              <div key={c.id} className={cx("flex animate-fade", mine ? "justify-end" : "justify-start")}>
+                <div
+                  className={cx(
+                    "max-w-[85%] rounded-[20px] px-3.5 py-2.5",
+                    mine ? "rounded-br-[6px]" : "rounded-bl-[6px]",
+                    c.internal ? "border border-dashed border-hint/60 bg-subtle text-text" : mine ? "bg-text text-bg" : "bg-surface text-text",
+                  )}
+                >
+                  {c.internal && (
+                    <div className="mb-1 flex items-center gap-1 text-[11px] font-medium text-hint"><Lock className="size-3" weight="fill" /> Внутренний — клиент не видит</div>
+                  )}
+                  <div className="whitespace-pre-wrap break-words text-[15px] leading-snug">{c.body}</div>
+                  <div className={cx("mt-1 text-[11px]", mine && !c.internal ? "opacity-60" : "text-hint")}>
+                    {mine ? "Вы" : c.author?.full_name ?? "Система"} · {dateTime(c.created_at)}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
-        {!["cancelled"].includes(a.status) && role !== "analyst" && (
-          <div className="card mt-3 p-3">
-            <textarea className={cx(inputCls, "min-h-20 resize-none shadow-none bg-subtle")} placeholder="Сообщение" value={msg} maxLength={4000}
-              onChange={(e) => setMsg(e.target.value)} aria-label="Текст сообщения" />
-            {staff && <div className="-mx-4"><Toggle checked={internal} onChange={setInternal} label="Внутренний комментарий" description="Виден только сотрудникам банка" /></div>}
-            <Button className="mt-2" block icon={<Send className="size-4" />} disabled={!msg.trim()} loading={comment.isPending} onClick={() => !comment.isPending && comment.mutate()}>
-              Отправить
-            </Button>
+        {canComment && (
+          <div className="card mt-3 p-2">
+            <div className="flex items-end gap-2">
+              <textarea
+                className="max-h-40 min-h-11 w-full flex-1 resize-none rounded-[18px] bg-subtle px-4 py-2.5 text-[15px] leading-snug outline-none [field-sizing:content] placeholder:text-hint focus:ring-2 focus:ring-brand/40"
+                placeholder="Сообщение" value={msg} maxLength={4000} rows={1}
+                onChange={(e) => setMsg(e.target.value)} aria-label="Текст сообщения" />
+              <button type="button" aria-label="Отправить" disabled={!msg.trim() || comment.isPending}
+                onClick={() => !comment.isPending && comment.mutate()}
+                className={cx("flex size-11 shrink-0 items-center justify-center rounded-full transition-[transform,background-color,color] active:scale-95 disabled:active:scale-100",
+                  msg.trim() ? "bg-brand text-white" : "bg-subtle text-hint")}>
+                {comment.isPending ? <Spinner /> : <PaperPlaneRight className="size-5" weight="fill" />}
+              </button>
+            </div>
+            {staff && <div className="-mx-2 -mb-1"><Toggle checked={internal} onChange={setInternal} label="Внутренний комментарий" description="Виден только сотрудникам банка" /></div>}
           </div>
         )}
       </Section>
@@ -175,13 +255,13 @@ export function ApplicationDetail() {
         {sheet && (
           <div className="space-y-3">
             <Field label={sheet.prompt ?? "Комментарий"} htmlFor="sheet-text" error={sheet.needsComment && status.error instanceof ApiError ? status.error.fieldErrors.comment : undefined}>
-              <textarea id="sheet-text" className={cx(inputCls, "min-h-28 resize-none bg-subtle shadow-none")} value={sheetText} maxLength={2000} onChange={(e) => setSheetText(e.target.value)} autoFocus />
+              <textarea id="sheet-text" className={cx(inputCls, "min-h-28 resize-none bg-subtle!")} value={sheetText} maxLength={2000} onChange={(e) => setSheetText(e.target.value)} autoFocus />
             </Field>
-            <Button block variant={sheet.variant === "danger" ? "dark" : "primary"} disabled={!!sheet.needsComment && !sheetText.trim()} loading={status.isPending}
+            <Button block size="lg" variant={sheet.variant === "danger" ? "dark" : "primary"} disabled={!!sheet.needsComment && !sheetText.trim()} loading={status.isPending}
               onClick={() => status.mutate({ to: sheet.to, comment: sheetText.trim() })}>
               {sheet.label}
             </Button>
-            {sheet.needsComment && <p className="text-[12px] text-hint">Комментарий увидит клиент и получит уведомление.</p>}
+            {sheet.needsComment && <p className="text-center text-[12px] text-hint">Клиент увидит комментарий и получит уведомление</p>}
           </div>
         )}
       </Sheet>

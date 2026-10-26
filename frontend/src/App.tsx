@@ -5,7 +5,8 @@ import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import { Brand, BrowserLogin, TelegramOnboarding } from "./auth/AuthScreens";
 import { AppShell } from "./components/Layout";
 import { ToastProvider } from "./components/toast";
-import { Button, ErrorState, Spinner } from "./components/ui";
+import { RefreshCw, Send } from "./components/icons";
+import { Button, EmptyState, ErrorState, Spinner } from "./components/ui";
 import { ApiError } from "./lib/api";
 import { tg } from "./lib/telegram";
 import { applyThemeMode } from "./lib/theme";
@@ -92,9 +93,9 @@ function RoleRoutes({ role }: { role: Role }) {
 
 function Splash({ children }: { children?: ReactNode }) {
   return (
-    <div className="mx-auto flex min-h-[var(--tg-viewport-stable-height,100dvh)] max-w-lg flex-col items-center justify-center gap-6 px-6 text-center">
+    <div className="mx-auto flex min-h-[var(--tg-viewport-stable-height,100dvh)] max-w-lg flex-col items-center justify-center gap-10 px-4 text-center pt-safe pb-safe animate-fade">
       <Brand compact />
-      {children ?? <Spinner className="size-6 text-brand" />}
+      {children ?? <Spinner className="size-6 text-hint" />}
     </div>
   );
 }
@@ -122,13 +123,13 @@ function Gate() {
     const notConfigured = e instanceof ApiError && e.code === "telegram_not_configured";
     return (
       <Splash>
-        <div className="w-full">
+        <div className="w-full max-w-sm">
           {notConfigured ? (
-            <p className="text-[15px] text-hint">Сервер ещё не настроен для Telegram (нет токена бота). Откройте приложение в браузере или обратитесь к администратору.</p>
+            <EmptyState icon={<Send className="size-6" />} title="Бот не настроен" text="На сервере нет токена бота. Откройте приложение в браузере."
+              action={<Button variant="secondary" size="sm" onClick={retry} icon={<RefreshCw className="size-4" />}>Повторить</Button>} />
           ) : (
             <ErrorState error={e} onRetry={retry} />
           )}
-          {notConfigured && <Button className="mt-4" variant="secondary" onClick={retry}>Повторить</Button>}
         </div>
       </Splash>
     );

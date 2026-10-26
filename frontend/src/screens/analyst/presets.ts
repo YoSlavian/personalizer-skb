@@ -47,25 +47,25 @@ export const PRESETS: { id: string; title: string; sub: string; profile: Profile
   {
     id: "A",
     title: "Агрохолдинг",
-    sub: "группа · ФД · средняя активность",
+    sub: "группа · ФД · сезон",
     profile: { ...base, company: "Группа «Поле-Инвест»", industry: "agro", seasonal: true, weeks_to_peak: 5, structure: "group", group: GROUPS.agro, mixed_balances: true, logins_30d: 4 },
   },
   {
     id: "B",
     title: "IT-компания",
-    sub: "бухгалтер · роль выведена · высокая активность",
+    sub: "бухгалтер · онлайн",
     profile: { ...base, company: "АО «Код-Сервис»", industry: "it", role: "acc", role_source: "inferred", logins_30d: 22 },
   },
   {
     id: "C",
     title: "Логистика",
-    sub: "собственник · роли нет в CRM · не заходит в ИБ",
+    sub: "роли нет в CRM · офлайн",
     profile: { ...base, company: "ООО «Транс-Линия»", industry: "log", role: "owner", role_source: "none", logins_30d: 0 },
   },
   {
     id: "D",
     title: "Импортёр",
-    sub: "ФД · крупный · валютный платёж сегодня",
+    sub: "ФД · валютный платёж",
     profile: { ...base, company: "ТД «Восток-Импорт»", industry: "trade", size: "large", logins_30d: 12, fx_payment: true },
   },
 ];

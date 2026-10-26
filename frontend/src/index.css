@@ -6,7 +6,8 @@
 @font-face { font-family: "Styrene B"; src: url("./assets/fonts/styrene-b-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 @font-face { font-family: "Styrene A"; src: url("./assets/fonts/styrene-a-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 
-/* Цвета берутся из темы Telegram (--tg-theme-* выставляет telegram-web-app.js), фирменные — акценты */
+/* Стиль «Альфа-Будущее»: серый фон, белые карточки, один акцент — красный; лайм — только метка «для вас / изменилось».
+   Светлая и тёмная палитры свои: Telegram задаёт только схему (data-theme), а не цвета — так приложение везде выглядит одинаково. */
 :root {
   --brand: #ef3124;
   --brand-press: #d32a1e;
@@ -15,65 +16,71 @@
   --blue: #2b72fe;
   --pink: #ff33ca;
   --ink: #0b0b0b;
-  --success: #1aa260;
-  --warning: #f2a516;
 
-  --bg: var(--tg-theme-secondary-bg-color, #f1f1f4);
-  --surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #ffffff));
-  --text: var(--tg-theme-text-color, #0b0b0b);
-  --hint: var(--tg-theme-hint-color, #85858d);
-  --link: var(--tg-theme-link-color, #2b72fe);
-  --separator: var(--tg-theme-section-separator-color, rgba(11, 11, 11, 0.08));
-  --danger: var(--tg-theme-destructive-text-color, #e5372b);
+  --bg: #ececec;
+  --surface: #ffffff;
+  --text: #0b0b0b;
+  --hint: #5f5f66;
+  --link: var(--brand);
+  --separator: rgba(11, 11, 11, 0.07);
+  --danger: #e5372b;
   --subtle: color-mix(in srgb, var(--text) 6%, transparent);
-  --subtle-2: color-mix(in srgb, var(--text) 10%, transparent);
+  --subtle-2: color-mix(in srgb, var(--text) 11%, transparent);
   --brand-soft: color-mix(in srgb, var(--brand) 11%, transparent);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  /* Заливка нейтральных кнопок, чипов и сегментов. Светлая — как --subtle; тёмная — непрозрачный графит,
+     иначе на чёрном фоне страницы кнопка превращается в «висящий текст». */
+  --btn: color-mix(in srgb, var(--text) 6%, transparent);
+  --btn-press: color-mix(in srgb, var(--text) 11%, transparent);
+  --shadow: none;
+  --nav: rgba(255, 255, 255, 0.94);
+  /* Фон «креатива» — карточки предложения, которую видит клиент (чёрная в светлой теме, графитовая в тёмной) */
+  --creative: #0b0b0b;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: var(--tg-theme-secondary-bg-color, #0e0e11);
-    --surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #1b1b20));
-    --text: var(--tg-theme-text-color, #f3f3f6);
-    --hint: var(--tg-theme-hint-color, #8d8d96);
-    --separator: var(--tg-theme-section-separator-color, rgba(255, 255, 255, 0.08));
-    --shadow: none;
+  :root:not([data-theme="light"]):not([data-mode="light"]) {
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --text: #ffffff;
+    --hint: #8e8e93;
+    --link: #ff5a4f;
+    --separator: rgba(255, 255, 255, 0.08);
+    --danger: #ff5a4f;
+    --nav: rgba(18, 18, 20, 0.92);
+    --creative: #2a2a2d;
+    --btn: #2c2c2e;
+    --btn-press: #3a3a3c;
     color-scheme: dark;
   }
 }
-:root[data-theme="dark"] {
-  --bg: var(--tg-theme-secondary-bg-color, #0e0e11);
-  --surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #1b1b20));
-  --text: var(--tg-theme-text-color, #f3f3f6);
-  --hint: var(--tg-theme-hint-color, #8d8d96);
-  --separator: var(--tg-theme-section-separator-color, rgba(255, 255, 255, 0.08));
-  --shadow: none;
-  color-scheme: dark;
-}
-
-/* Тема, выбранная пользователем в профиле, важнее темы Telegram. Тёмная — в стиле Альфа-Босс: чёрный фон, графитовые карточки */
+:root[data-theme="dark"]:not([data-mode="light"]),
 :root[data-mode="dark"] {
   --bg: #000000;
   --surface: #1c1c1e;
   --text: #ffffff;
-  --hint: #9a9aa3;
-  --link: #6ea2ff;
+  --hint: #8e8e93;
+  --link: #ff5a4f;
   --separator: rgba(255, 255, 255, 0.08);
   --danger: #ff5a4f;
-  --shadow: none;
+  --nav: rgba(18, 18, 20, 0.92);
+  --creative: #2a2a2d;
+  --btn: #2c2c2e;
+  --btn-press: #3a3a3c;
   color-scheme: dark;
 }
 :root[data-mode="light"] {
-  --bg: #f1f1f4;
+  --bg: #ececec;
   --surface: #ffffff;
   --text: #0b0b0b;
-  --hint: #85858d;
-  --link: #2b72fe;
-  --separator: rgba(11, 11, 11, 0.08);
+  --hint: #5f5f66;
+  --link: var(--brand);
+  --separator: rgba(11, 11, 11, 0.07);
   --danger: #e5372b;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --nav: rgba(255, 255, 255, 0.94);
+  --creative: #0b0b0b;
+  --btn: color-mix(in srgb, var(--text) 6%, transparent);
+  --btn-press: color-mix(in srgb, var(--text) 11%, transparent);
   color-scheme: light;
 }
 
@@ -89,6 +96,8 @@
   --color-danger: var(--danger);
   --color-subtle: var(--subtle);
   --color-subtle-2: var(--subtle-2);
+  --color-btn: var(--btn);
+  --color-btn-press: var(--btn-press);
   --color-brand: var(--brand);
   --color-brand-press: var(--brand-press);
   --color-brand-soft: var(--brand-soft);
@@ -97,8 +106,7 @@
   --color-blue: var(--blue);
   --color-pink: var(--pink);
   --color-ink: var(--ink);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
+  --color-creative: var(--creative);
 }
 
 html,
@@ -132,17 +140,70 @@ select {
   background: var(--brand-soft);
 }
 
+/* Отступы под системный интерфейс. В полноэкранном режиме Telegram (Bot API 8.0+) задаёт две пары переменных:
+   --tg-safe-area-inset-*         — вырез, Dynamic Island, статус-бар, полоска «домой»;
+   --tg-content-safe-area-inset-* — плавающие кнопки Telegram: слева «Закрыть»/«Назад», справа «⌄ •••».
+   Контент начинается ниже обеих зон; вне полноэкранного режима переменные равны нулю. */
+:root {
+  --app-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
+  --app-bottom: calc(max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px)) + var(--tg-content-safe-area-inset-bottom, 0px));
+}
 .pb-safe {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tg-content-safe-area-inset-bottom, 0px));
+  padding-bottom: var(--app-bottom);
 }
 .pt-safe {
-  padding-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
+  padding-top: var(--app-top);
 }
-.card {
-  background: var(--surface);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
+/* Полоса цвета фона под кнопками Telegram: прокрученный контент уходит под неё, а не наезжает на «Закрыть» и «•••».
+   Высота = зона кнопок, поэтому вне полноэкранного режима полосы нет. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--app-top);
+  z-index: 45;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
 }
+@layer components {
+  .card {
+    background: var(--surface);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+  }
+  /* Заголовки экранов и разделов — Styrene A, капслоком, как в шаблоне Альфа-Будущего.
+     Интерлиньяж 1.04: при 0.98 бреве «Й» во второй строке задевает буквы строки выше. */
+  .title-xl {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    line-height: 1.04;
+  }
+  .sticker {
+    display: inline-block;
+    background: var(--brand);
+    color: #fff;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    transform: rotate(-3deg);
+  }
+  /* Поле ввода (inputCls): белое на сером фоне страницы, а внутри карточки или шторки — серое, иначе его не видно */
+  .field {
+    background: var(--surface);
+  }
+  :where(.card, [role="dialog"]) .field {
+    background: var(--subtle);
+  }
+  .skeleton {
+    background: var(--subtle) linear-gradient(90deg, transparent, var(--subtle), transparent) no-repeat;
+    background-size: 200px 100%;
+    animation: shimmer 1.2s infinite linear;
+    border-radius: 10px;
+  }
+}
+/* Табличные цифры. В шрифтах Styrene исправлена подмена tnum, из-за которой «=» и «×» менялись местами. */
 .tabular {
   font-variant-numeric: tabular-nums;
 }
@@ -172,13 +233,6 @@ select {
 .animate-fade-up { animation: fade-up 0.22s ease-out both; }
 .animate-sheet { animation: sheet-up 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .animate-fade { animation: fade-in 0.18s ease-out both; }
-.skeleton {
-  background: var(--subtle) linear-gradient(90deg, transparent, var(--subtle), transparent) no-repeat;
-  background-size: 200px 100%;
-  animation: shimmer 1.2s infinite linear;
-  border-radius: 10px;
-}
-
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -187,22 +241,22 @@ input[type="range"] {
   background: transparent;
 }
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 6px;
   border-radius: 4px;
   background: var(--subtle-2);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   margin-top: -10px;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: var(--brand);
-  border: 3px solid var(--surface);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  background: #fff;
+  border: 0;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
 }
-input[type="range"]::-moz-range-track { height: 4px; border-radius: 4px; background: var(--subtle-2); }
-input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--brand); border: 3px solid var(--surface); }
+input[type="range"]::-moz-range-track { height: 6px; border-radius: 4px; background: var(--subtle-2); }
+input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28); }
 
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -67,7 +67,9 @@ describe("telegram wrapper", () => {
     expect(wa.showConfirm).toHaveBeenCalled();
     tg.applyTheme();
     expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(wa.setHeaderColor).toHaveBeenCalledWith("secondary_bg_color");
+    // Шапка и фон Telegram — в цвет фона приложения для тёмной темы
+    expect(wa.setHeaderColor).toHaveBeenCalledWith("#000000");
+    expect(wa.setBackgroundColor).toHaveBeenCalledWith("#000000");
     const off = tg.backButton(() => {});
     expect(wa.BackButton.show).toHaveBeenCalled();
     off();

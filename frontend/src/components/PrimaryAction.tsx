@@ -3,11 +3,26 @@ import { useLatest } from "../lib/hooks";
 import { tg } from "../lib/telegram";
 import { Button } from "./ui";
 
+/** Высота нижней панели вкладок (Layout): кнопка в браузере закрепляется над ней, а не под ней. */
+const TAB_BAR = "60px";
+
 /**
- * Главное действие экрана. В Telegram — нативная MainButton (внизу окна), в браузере — закреплённая кнопка.
+ * Главное действие экрана. В Telegram — нативная MainButton (внизу окна), в браузере — закреплённая красная кнопка.
  * Повторные нажатия игнорируются, пока действие выполняется или недоступно.
  */
-export function PrimaryAction({ text, onClick, disabled, loading }: { text: string; onClick: () => void; disabled?: boolean; loading?: boolean }) {
+export function PrimaryAction({
+  text,
+  onClick,
+  disabled,
+  loading,
+  aboveTabBar = true,
+}: {
+  text: string;
+  onClick: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  aboveTabBar?: boolean;
+}) {
   const mb = tg.mainButton();
   const cb = useLatest({ onClick, disabled, loading });
 
@@ -49,9 +64,13 @@ export function PrimaryAction({ text, onClick, disabled, loading }: { text: stri
   );
 
   if (mb) return null;
+  const safe = "env(safe-area-inset-bottom, 0px) + var(--tg-content-safe-area-inset-bottom, 0px)";
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 mt-4 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-safe pt-3">
-      <Button block size="lg" onClick={onClick} disabled={disabled} loading={loading} className="mb-3">
+    <div
+      className="sticky z-20 -mx-4 mt-4 bg-bg px-4 pb-3 pt-3"
+      style={{ bottom: aboveTabBar ? `calc(${TAB_BAR} + ${safe})` : `calc(${safe})` }}
+    >
+      <Button block size="lg" onClick={onClick} disabled={disabled} loading={loading}>
         {text}
       </Button>
     </div>
