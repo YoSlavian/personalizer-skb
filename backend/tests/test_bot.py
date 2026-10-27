@@ -164,3 +164,13 @@ async def test_outbox_delivery_success_retry_and_blocked():
     nid = await _notification_for("admin@demo.local", 990007)
     blocked = FakeSession(fail=TelegramForbiddenError(method=SendMessage(chat_id=1, text="x"), message="bot was blocked by the user"))
     assert await deliver_one(make_bot(blocked), nid) == "failed"
+
+
+async def test_calc_notification_hides_amounts_in_telegram():
+    from app.bot.handlers import render_notification
+
+    n = Notification(user_id=1, kind=NotificationKind.offer, title="Расчёт от коллеги: Оборотный кредит",
+                     body="20,0 млн ₽ на 12 мес. Откройте расчёт и примите решение в кабинете.", link="/journey?product=working",
+                     tg_payload={"type": "calc", "product": "working"})
+    text, _ = await render_notification(None, n)
+    assert "Коллега подготовил расчёт" in text and "млн" not in text and "мес." not in text

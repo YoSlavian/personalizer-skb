@@ -44,6 +44,8 @@ async def _me_payload(db: DB, user: User, csrf: str | None = None) -> dict:
         "organizations": [{"id": c.org_id, "contact_id": c.id} for c in contacts],
         "csrf_token": csrf,
         "demo_mode": get_settings().demo_mode,
+        # Публичное демо: пароли демо-учёток известны всем, часть действий доступна только в режиме предпросмотра
+        "public_demo": get_settings().demo_mode and get_settings().is_production,
         "bot_username": get_settings().telegram_bot_username,
     }
 

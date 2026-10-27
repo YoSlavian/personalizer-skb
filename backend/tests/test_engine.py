@@ -149,6 +149,10 @@ def test_frequency_limits():
     assert frequency_block(channel="email", activity_level="low", org_history=[h("email", 40)], **args)
     assert frequency_block(channel="km_call", activity_level="low", org_history=[h("km_call", 20)], **args)
     assert frequency_block(channel="email", activity_level="mid", org_history=[h("email", 3, status="blocked")], **args) is None
+    # Email — не чаще раза в 60 дней при любой активности, не только у малоактивных
+    assert frequency_block(channel="email", activity_level="mid", org_history=[h("email", 40)], **args)
+    assert frequency_block(channel="email", activity_level="high", org_history=[h("email", 40)], **args)
+    assert frequency_block(channel="email", activity_level="mid", org_history=[h("email", 61)], **args) is None
 
 
 def test_group_limit_and_event_bypass():

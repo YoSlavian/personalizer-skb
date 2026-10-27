@@ -72,10 +72,11 @@ def frequency_block(
                 return f"КМ: не чаще 1 касания в {f.low_km} дней"
         return None
 
-    if channel == "email" and activity_level == "low":
+    # Email — не чаще раза в low_email дней при любой активности: норма банка, общая для всех получателей
+    if channel == "email":
         for h in delivered:
             if h.channel == "email" and _days_ago(now, h.created_at) < f.low_email:
-                return f"Email малоактивному клиенту не чаще 1 раза в {f.low_email} дней"
+                return f"Email не чаще 1 раза в {f.low_email} дней"
 
     if event_driven:
         # Событийные предложения не ждут общего окна, но не повторяются по тому же продукту чаще раза в неделю

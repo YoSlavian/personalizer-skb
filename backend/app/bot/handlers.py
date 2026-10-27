@@ -357,6 +357,10 @@ async def render_notification(db: AsyncSession, n: Notification) -> tuple[str, o
                 kb.offer_keyboard(int(p["communication_id"]), str(p.get("cta") or "Рассчитать")))
     if t == "application":
         return f"📄 <b>{esc(n.title)}</b>\n{esc(n.body)}", kb.application_keyboard(int(p["application_id"]), True)
+    if t == "calc":
+        # Расчёт от коллеги: суммы и сроки видны только в кабинете, в чат Telegram — без финансовых деталей
+        btn = kb.open_app_button("Открыть расчёт", n.link) if n.link else None
+        return f"🔔 <b>{esc(n.title)}</b>\nКоллега подготовил расчёт — откройте его в кабинете.", kb.inline([btn]) if btn else None
     if t == "task":
         task = await db.get(Task, int(p["task_id"]))
         status = task.status.value if task else "done"

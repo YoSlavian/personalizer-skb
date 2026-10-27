@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.db import utcnow
 from app.engine.catalog import CHANNELS, SEGMENTS
 from app.models import Application, Communication, Consent, JourneyEvent, JourneySession, Organization, User
@@ -142,9 +143,12 @@ async def overview(session: AsyncSession, user: User, days: int = 90) -> dict[st
             "approved": sum(1 for a in attributed if a.status == AppStatus.approved),
         }
 
-    sessions = list((await session.execute(
-        select(JourneySession).where(JourneySession.started_at >= since, org_scope(user, JourneySession.org_id))
-    )).scalars())
+    js_query = select(JourneySession).where(JourneySession.started_at >= since, org_scope(user, JourneySession.org_id))
+    settings = get_settings()
+    if settings.demo_mode and settings.is_production:
+        # Публичное демо: клики зрителей не двигают UX-метрики — считаем по синтетическим сессиям сида (без пользователя)
+        js_query = js_query.where(JourneySession.user_id.is_(None))
+    sessions = list((await session.execute(js_query)).scalars())
     sid = [s.id for s in sessions]
     reached: dict[int, set[str]] = defaultdict(set)
     if sid:
@@ -154,11 +158,14 @@ async def overview(session: AsyncSession, user: User, days: int = 90) -> dict[st
             if screen:
                 reached[s_id].add(screen)
     journey = {}
+    stale_before = now - timedelta(hours=1)
     for flag, label in ((True, "adaptive"), (False, "static")):
-        ss = [s for s in sessions if s.adapt == flag]
+        # Свежие незавершённые сессии не считаем: исход ещё неизвестен. Открытая дольше часа без событий — брошенная
+        ss = [s for s in sessions if s.adapt == flag and (s.outcome != "open" or s.last_event_at < stale_before)]
         applied = [s for s in ss if s.outcome == "applied"]
         calc = [s for s in ss if "calc" in reached[s.id] or s.recalcs > 0]
-        to_form = [s for s in calc if "form" in reached[s.id] or s.outcome == "applied"]
+        # Drop-off «калькулятор → заявка»: дошёл до калькулятора, но заявку не отправил
+        to_form = [s for s in calc if s.outcome == "applied"]
         times = [s.time_to_apply_sec for s in applied if s.time_to_apply_sec is not None]
         journey[label] = {
             "sessions": len(ss),

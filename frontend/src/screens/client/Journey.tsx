@@ -37,7 +37,7 @@ const INSTR: Record<string, string> = {
 const FINANCING = new Set(["working", "concession", "project", "leasing", "factoring"]);
 const kindOf = (code: string) => (code === "deposit" ? "deposit" : FINANCING.has(code) ? "financing" : "other");
 const ICONS: Record<string, IconType> = { working: Coins, concession: Bank, leasing: Truck, factoring: Receipt, deposit: PiggyBank };
-const CALCULABLE = new Set(["working", "concession", "leasing", "factoring", "deposit"]);
+export const CALCULABLE = new Set(["working", "concession", "leasing", "factoring", "deposit"]);
 const TERMS: Record<string, number[]> = { working: [6, 12, 24, 36], concession: [12, 24, 36], leasing: [12, 24, 36, 48], factoring: [1, 2, 3, 4], deposit: [3, 6, 12] };
 const STEPS: { key: Step; label: string }[] = [
   { key: "showcase", label: "Витрина" },
@@ -149,7 +149,11 @@ export function Journey() {
   const initialProduct = params.get("product") ?? "working";
 
   const [product, setProduct] = useState(initialProduct);
-  const [step, setStep] = useState<Step>(draftId ? "form" : CALCULABLE.has(initialProduct) ? "showcase" : "form");
+  // Персональное предложение с главной уже выбрало продукт — сразу расчёт; витрина остаётся шагом «Назад» и для сравнения.
+  // Ссылки из бота и push несут только offer, без product: для них витрина, чтобы не открыть расчёт чужого продукта
+  const [step, setStep] = useState<Step>(
+    draftId ? "form" : !CALCULABLE.has(initialProduct) ? "form" : offerId && params.has("product") ? "calc" : "showcase",
+  );
   const [session, setSession] = useState<JourneySession | null>(null);
   const [startError, setStartError] = useState<unknown>(null);
   const [amountMln, setAmountMln] = useState(20);
@@ -170,7 +174,9 @@ export function Journey() {
   const idleSent = useRef(false);
   const hintRef = useRef<HTMLElement>(null);
 
-  const showcase = useQuery({ queryKey: ["showcase", initialProduct], queryFn: () => get<Showcase>(`/cabinet/showcase?product=${encodeURIComponent(initialProduct)}`), enabled: step === "showcase" });
+  const showcase = useQuery({ queryKey: ["showcase", initialProduct], queryFn: () => get<Showcase>(`/cabinet/showcase?product=${encodeURIComponent(initialProduct)}`),
+    // В калькуляторе витрина нужна для подсказки «Сравнить с …», даже если клиент пришёл сразу на расчёт
+    enabled: step === "showcase" || step === "calc" });
   const draft = useQuery({ queryKey: ["application", draftId], queryFn: () => get<ApplicationDetail>(`/applications/${draftId}`), enabled: !!draftId });
   const home = useQuery({ queryKey: ["cabinet-home"], queryFn: () => get<CabinetHome>("/cabinet/home"), staleTime: 60_000 });
 
@@ -235,7 +241,8 @@ export function Journey() {
     bump((x) => x + 1);
   };
   useEffect(() => {
-    if (step !== "calc" || !session) return;
+    // Пришёл из предложения сразу в расчёт — паузу считаем после первого действия, а не с открытия экрана
+    if (step !== "calc" || !session || (offerId && touch.current === 0)) return;
     const t = window.setTimeout(() => {
       if (!idleSent.current) {
         idleSent.current = true;

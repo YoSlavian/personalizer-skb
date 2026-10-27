@@ -149,4 +149,36 @@ describe("Adaptive journey", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Отправить расчёт финдиректору/ })).toBeInTheDocument();
   });
+
+  it("opens a personal offer straight in the calculator", async () => {
+    const session = { id: 9, product_code: "working", adapt: true, variant: "test", outcome: "open",
+      metrics: { elapsed_sec: 1, time_to_apply_sec: null, steps: 1, returns: 0, recalcs: 0, hints_shown: 0, hints_closed: 0 }, screen: "home", log: [], active: [], new: [],
+      config: { idle_seconds: 60, returns_threshold: 2, recalc_threshold: 3, quick_seconds: 15 } };
+    mockApi([
+      { path: "/auth/me", body: me("client") },
+      { path: "/cabinet/home", body: home },
+      { path: "/cabinet/showcase", body: { variant: "test", items: [{ code: "working", name: "Оборотный кредит", recommended: true, calculable: true, why: [] }], offer_product: "working" } },
+      { method: "POST", path: "/cabinet/journey/9/events", body: session },
+      { method: "POST", path: "/cabinet/journey", body: session },
+    ]);
+    renderWithProviders(<Routes><Route path="/journey" element={<Journey />} /></Routes>, { withAuth: true, waitReady: true, route: "/journey?product=working&offer=5" });
+    expect(await screen.findByRole("button", { name: /Пересчитать/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Рассчитать" })).toBeNull();
+  });
+
+  it("keeps the showcase for offer links without a product (bot, push)", async () => {
+    const session = { id: 9, product_code: "working", adapt: true, variant: "test", outcome: "open",
+      metrics: { elapsed_sec: 1, time_to_apply_sec: null, steps: 1, returns: 0, recalcs: 0, hints_shown: 0, hints_closed: 0 }, screen: "home", log: [], active: [], new: [],
+      config: { idle_seconds: 60, returns_threshold: 2, recalc_threshold: 3, quick_seconds: 15 } };
+    mockApi([
+      { path: "/auth/me", body: me("client") },
+      { path: "/cabinet/home", body: home },
+      { path: "/cabinet/showcase", body: { variant: "test", items: [{ code: "working", name: "Оборотный кредит", recommended: true, calculable: true, why: [] }], offer_product: "working" } },
+      { method: "POST", path: "/cabinet/journey/9/events", body: session },
+      { method: "POST", path: "/cabinet/journey", body: session },
+    ]);
+    renderWithProviders(<Routes><Route path="/journey" element={<Journey />} /></Routes>, { withAuth: true, waitReady: true, route: "/journey?offer=5" });
+    expect(await screen.findByRole("button", { name: "Рассчитать" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Пересчитать/ })).toBeNull();
+  });
 });

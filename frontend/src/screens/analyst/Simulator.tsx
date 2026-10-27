@@ -12,7 +12,8 @@ import { useDebounced, useStoredState } from "../../lib/hooks";
 import { tg } from "../../lib/telegram";
 import type { Catalog, DecisionResult, Profile } from "../../lib/types";
 import {
-  AllProducts, AsIsToBe, ChannelTags, FallbackBanner, type FactKey, factsOf, ResultBanners, ResultFacts, SuppressedCard, WhyPipeline,
+  AllProducts, AsIsToBe, ChannelTags, channelNames, FallbackBanner, type FactKey, factsOf, ResultBanners, ResultFacts, SuppressedCard, useCtaPreview,
+  WhyPipeline,
 } from "./DecisionView";
 import { type GroupPlan, GroupPlanView } from "./GroupPlanView";
 import { GROUPS, PRESETS } from "./presets";
@@ -198,6 +199,7 @@ export function Simulator() {
   const [profile, setProfile] = useStoredState<Profile>("sim.profile", fromClient ?? PRESETS[0].profile);
   const [preset, setPreset] = useStoredState<string | null>("sim.preset", fromClient ? null : "A");
   const [more, setMore] = useState(false);
+  const ctaPreview = useCtaPreview();
   const [allOpen, setAllOpen] = useState(false);
   const closeMore = useCallback(() => setMore(false), []);
   useEffect(() => {
@@ -222,7 +224,7 @@ export function Simulator() {
     placeholderData: keepPreviousData,
   });
 
-  const [log, setLog] = useStoredState<LogEntry[]>("sim.log", []);
+  const [log, setLog] = useStoredState<LogEntry[]>("sim.log.v2", []);
   const pending = useRef<string | null>(null);
   const [tick, setTick] = useState(0); // каждое действие пользователя, даже если профиль не изменился
   const set = (patch: Partial<Profile>) => {
@@ -255,7 +257,7 @@ export function Simulator() {
     lastFacts.current = facts;
     if (!pending.current) return;
     const product = r.suppressed ? "Ничего не отправляем" : r.offer?.product_name ?? "—";
-    const channel = r.channels.map((c) => c.label.split(":")[0]).join(" + ") || "—";
+    const channel = channelNames(r).join(" + ") || "—";
     const prev = log[0];
     setLog([{ at: new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), change: pending.current, product, channel,
       changed: !prev || prev.product !== product || prev.channel !== channel }, ...log].slice(0, 30));
@@ -402,7 +404,7 @@ export function Simulator() {
               <div className="mt-3">
                 {r.suppressed ? <SuppressedCard /> : r.offer && (
                   <OfferCard key={`${r.offer.product_code}-${r.offer.headline}`} kicker={r.offer.product_name} headline={r.offer.headline}
-                    body={r.offer.body} cta={r.offer.cta} visual={r.visual_data} />
+                    body={r.offer.body} cta={r.offer.cta} visual={r.visual_data} onCta={ctaPreview(r.offer)} />
                 )}
               </div>
               <div className="mt-3"><ResultFacts r={r} changed={changed} /></div>

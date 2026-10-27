@@ -3,6 +3,7 @@ import { EnvelopeSimple } from "@phosphor-icons/react";
 import { ArrowRightLeft, Ban, Briefcase, ClipboardList, type IconType, Megaphone, Phone, RefreshCw, Send } from "../../components/icons";
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
+import { useMe } from "../../auth/AuthProvider";
 import { Screen } from "../../components/Layout";
 import { PrimaryAction } from "../../components/PrimaryAction";
 import { useToast } from "../../components/toast";
@@ -11,6 +12,7 @@ import { ApiError, get, post } from "../../lib/api";
 import { dateTime } from "../../lib/format";
 import { tg } from "../../lib/telegram";
 import type { CampaignStats, Page } from "../../lib/types";
+import { displayChannelLabels } from "./DecisionView";
 
 const CH: Record<string, string> = { boss: "Альфа-Босс", banner_ib: "Баннер ИБ", push: "Push в Telegram", email: "Email", km_call: "Задача КМ", fx_placement: "Плейсмент у валютного перевода" };
 const CH_ICON: Record<string, IconType> = { boss: Briefcase, banner_ib: Megaphone, push: Send, email: EnvelopeSimple, km_call: Phone, fx_placement: ArrowRightLeft };
@@ -85,7 +87,7 @@ function StatsView({ s }: { s: CampaignStats }) {
         <Section title="Примеры решений">
           <List>
             {s.examples.map((e) => (
-              <Row key={e.org_id} title={e.company} subtitle={`${e.product} → ${e.recipient} · ${e.channels.join(" + ")}`}
+              <Row key={e.org_id} title={e.company} subtitle={`${e.product} → ${e.recipient} · ${displayChannelLabels(e.channels).join(" + ")}`}
                 right={<Tag tone={e.variant === "control" ? "neutral" : "violet"}>{e.variant === "control" ? "контроль" : "тест"}</Tag>} />
             ))}
           </List>
@@ -117,6 +119,7 @@ function StatsSkeleton() {
 
 export function Campaign() {
   const toast = useToast();
+  const publicDemo = !!useMe().public_demo;
   const qc = useQueryClient();
   const navigate = useNavigate();
   const preview = useMutation({ mutationFn: () => post<CampaignStats>("/campaigns/run", { dry_run: true }) });
@@ -159,12 +162,16 @@ export function Campaign() {
 
       {/* Главное действие — MainButton Telegram (в браузере — закреплённая кнопка над вкладками).
           Прямой потомок экрана, чтобы в браузере кнопка держалась внизу, пока листают предпросмотр. */}
-      {run.data ? (
+      {run.data || publicDemo ? (
         <PrimaryAction text="К метрикам пилота" onClick={() => navigate("/pilot")} />
       ) : (
         <PrimaryAction text="Запустить кампанию" onClick={confirmRun} loading={run.isPending} disabled={!preview.data} />
       )}
-      <p className={cx("px-1 text-[12px] leading-snug text-hint", tg.mainButton() ? "mt-5" : "mt-1")}>Повторный запуск сразу после первого покажет лимиты частоты: большинство коммуникаций остановит политика.</p>
+      <p className={cx("px-1 text-[12px] leading-snug text-hint", tg.mainButton() ? "mt-5" : "mt-1")}>
+        {publicDemo
+          ? "В публичном демо — только предпросмотр: запуск изменил бы журнал и метрики пилота для всех, кто смотрит демо."
+          : "Повторный запуск сразу после первого покажет лимиты частоты: большинство коммуникаций остановит политика."}
+      </p>
 
       <Section title="Последние запуски">
         {runs.isLoading ? <ListSkeleton rows={2} /> : (
