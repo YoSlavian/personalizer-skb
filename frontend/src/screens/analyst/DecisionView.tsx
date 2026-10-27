@@ -2,8 +2,11 @@ import { Equals } from "@phosphor-icons/react";
 import { AlertTriangle, BellOff, Check, ChevronDown, Route, X, Zap } from "../../components/icons";
 import { type ReactNode, useState } from "react";
 import { OfferCard } from "../../components/Offer";
+import { useToast } from "../../components/toast";
 import { Banner, cx, IconBadge, Section, Tag } from "../../components/ui";
+import { tg } from "../../lib/telegram";
 import type { DecisionResult, ScoreRow } from "../../lib/types";
+import { CALCULABLE } from "../client/Journey";
 
 /**
  * Решение по клиенту, разобранное на блоки: что получит клиент, почему именно это, было / стало.
@@ -25,7 +28,35 @@ export const score = (v: number) => {
   return s.replace(".", ",");
 };
 const productsWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "продукта" : "продуктов");
-export const channelNames = (r: DecisionResult) => r.channels.map((c) => c.label.split(":")[0].trim());
+/** Лимит email из активных правил (frequency.low_email, сейчас 60 дней) — общий для всех получателей */
+const EMAIL_LABEL = "Email · не чаще 1 раза в 60 дн.";
+/**
+ * Каналы для показа: Альфа-Босс первым (основной канал к ЛПР), у email — его лимит.
+ * Порядок и подписи в ответе движка не трогаем: их сверяет тест паритета с прототипом команды.
+ */
+export function displayChannels(r: DecisionResult): DecisionResult["channels"] {
+  const boss = r.channels.filter((c) => c.code === "boss");
+  const rest = r.channels.filter((c) => c.code !== "boss");
+  return [...boss, ...rest].map((c) => (c.code === "email" ? { ...c, label: EMAIL_LABEL } : c));
+}
+export const channelNames = (r: DecisionResult) => displayChannels(r).map((c) => c.label.split(":")[0].trim());
+
+/**
+ * Креатив у аналитика — превью того, что увидит клиент. Кнопка не ведёт в путь клиента (у аналитика его нет),
+ * поэтому по нажатию объясняем, куда она ведёт у клиента, а не оставляем «мёртвую» кнопку.
+ */
+export function useCtaPreview() {
+  const toast = useToast();
+  return (offer: NonNullable<DecisionResult["offer"]>) => () => {
+    tg.haptic("light");
+    toast.show(
+      CALCULABLE.has(offer.product_code)
+        ? `Превью для клиента: «${offer.cta}» у него сразу откроет расчёт`
+        : `Превью для клиента: «${offer.cta}» у него откроет заявку на подключение`,
+      "info",
+    );
+  };
+}
 
 /* ───────────── Что получит клиент ───────────── */
 
@@ -34,7 +65,7 @@ export function factsOf(r: DecisionResult): Record<FactKey, string> {
   return {
     product: r.suppressed ? "Не предлагаем" : r.offer?.product_name ?? "—",
     recipient: r.recipient,
-    channel: r.channels.map((c) => c.label).join(" + ") || "—",
+    channel: displayChannels(r).map((c) => c.label).join(" + ") || "—",
     frequency: r.frequency,
     nba: r.nba,
   };
@@ -281,7 +312,7 @@ export function AsIsToBe({ r }: { r: DecisionResult }) {
     ["Продукт", r.suppressed ? "—" : r.offer?.product_name ?? "—"],
     ["Кому", r.recipient],
     ["Текст", r.offer && !r.suppressed ? `«${r.offer.headline}»` : "—"],
-    ["Канал", r.channels.map((c) => c.label).join(" + ") || "—"],
+    ["Канал", displayChannels(r).map((c) => c.label).join(" + ") || "—"],
     ["Частота", r.frequency],
   ];
   return (
@@ -332,6 +363,7 @@ export function DecisionSummary({ r }: { r: DecisionResult }) {
  */
 export function DecisionView({ r, variant, industryName, groupLevel }: { r: DecisionResult; variant?: "test" | "control"; industryName?: string; groupLevel?: boolean }) {
   const [all, setAll] = useState(false);
+  const ctaPreview = useCtaPreview();
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5">
@@ -344,7 +376,8 @@ export function DecisionView({ r, variant, industryName, groupLevel }: { r: Deci
       {r.fallback && <div className="mt-3"><FallbackBanner r={r} /></div>}
       <div className="mt-3">
         {r.suppressed ? <SuppressedCard /> : r.offer && (
-          <OfferCard kicker={r.offer.product_name} headline={r.offer.headline} body={r.offer.body} cta={r.offer.cta} visual={r.visual_data} />
+          <OfferCard kicker={r.offer.product_name} headline={r.offer.headline} body={r.offer.body} cta={r.offer.cta} visual={r.visual_data}
+            onCta={ctaPreview(r.offer)} />
         )}
       </div>
       <div className="mt-3"><ResultFacts r={r} /></div>

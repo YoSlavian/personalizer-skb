@@ -35,3 +35,12 @@ def test_public_demo_blocks_destructive_actions(monkeypatch: pytest.MonkeyPatch)
     ensure_not_public_demo(SimpleNamespace(email="real.admin@bank.example"))
     monkeypatch.setattr(s, "environment", "development")
     ensure_not_public_demo(SimpleNamespace(email="admin@demo.local"))
+
+
+async def test_public_demo_allows_only_campaign_preview(analyst, monkeypatch: pytest.MonkeyPatch) -> None:
+    s = get_settings()
+    monkeypatch.setattr(s, "demo_mode", True)
+    monkeypatch.setattr(s, "environment", "production")
+    blocked = await analyst.post("/api/campaigns/run", json={})
+    assert blocked.status_code == 403 and blocked.json()["error"]["code"] == "demo_read_only"
+    assert (await analyst.post("/api/campaigns/run", json={"dry_run": True})).status_code == 200

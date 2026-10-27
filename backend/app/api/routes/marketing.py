@@ -32,7 +32,10 @@ class RulesIn(BaseModel):
 
 @router.post("/campaigns/run")
 async def run_campaign(body: RunIn, user: AnalystOrAdmin, db: DB) -> dict:
-    stats = await camp_svc.run_campaign(db, user, org_ids=body.org_ids, dry_run=body.dry_run)
+    # В публичном демо — только предпросмотр: реальный запуск менял бы журнал и метрики пилота для всех зрителей
+    if not body.dry_run:
+        ensure_not_public_demo(user)
+    stats =await camp_svc.run_campaign(db, user, org_ids=body.org_ids, dry_run=body.dry_run)
     await db.commit()
     return stats
 

@@ -138,7 +138,8 @@ async def handle_event(session: AsyncSession, user: User, session_id: int, *, ki
             fd_users = [c.user_id for c in org.contacts if c.user_id and c.user_id != user.id and infer_role(c).role in ("fd", "owner")]
             if fd_users:
                 await notify(session, fd_users, kind=NotificationKind.offer, title=f"Расчёт от коллеги: {product.name}",
-                             body=f"{amount / 1e6:.1f} млн ₽ на {term} мес. Откройте расчёт и примите решение в кабинете.",
+                             # Без сумм и сроков: уведомление уходит и в Telegram, финансовые детали — только в кабинете
+                             body="Коллега подготовил расчёт — откройте его в кабинете.",
                              link=f"/journey?product={js.product_code}", entity_type="journey", entity_id=js.id,
                              tg_payload={"type": "calc", "product": js.product_code})
                 extra["message"] = "Расчёт отправлен финансовому директору"

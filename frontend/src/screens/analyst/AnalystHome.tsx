@@ -110,7 +110,7 @@ export function AnalystHome() {
     <Screen title="Пилот" subtitle="Тест — персонализация, контроль — текущий оптимизатор (AS IS)" right={<BellButton />}>
       <Hint id="pilot" steps={[
         "Тест получает персональные предложения, контроль — как сейчас (AS IS).",
-        "Чёрная карточка — главная метрика и значимость разницы (z-тест).",
+        "Чёрная карточка — демо-расчёт CR показ → заявка и z-тест; главная метрика пилота — CR90 по группам и компаниям.",
         "Плашки: лайм — лучше контроля, красная — хуже, «=» — без изменений.",
       ]} />
       <div className="mt-4">
@@ -122,7 +122,7 @@ export function AnalystHome() {
       {a.data && t && c && (
         <div className={cx("animate-fade transition-opacity", a.isPlaceholderData && "opacity-60")} aria-busy={a.isPlaceholderData || undefined}>
           <section className="mt-4 rounded-[24px] bg-creative p-5 text-white" aria-label="Главная метрика">
-            <div className="text-[13px] text-white/60">Главная метрика · CR в заявку</div>
+            <div className="text-[13px] text-white/60">CR показ → заявка · демо-расчёт</div>
             <div className="mt-2.5 flex items-center gap-2.5">
               <span className="font-display text-[44px] leading-[0.9] tabular">{pct(t.cr)}</span>
               <DeltaPill d={deltaOf(a.data.uplift.cr)} onDark />
@@ -130,8 +130,9 @@ export function AnalystHome() {
             <div className="mt-3 text-[13px] text-white/75">
               контроль {pct(c.cr)} · {hasP ? <>z-тест p = {pText} · {p < 0.05 ? "значимо" : "не значимо"}</> : "недостаточно данных для z-теста"}
             </div>
-            {hasP && p >= 0.05 && <div className="mt-1 text-[12px] text-white/50">Нужно больше показов — продолжаем пилот.</div>}
+            <div className="mt-1 text-[12px] text-white/50">Вывод — только по окончании окна пилота на заранее рассчитанной выборке.</div>
           </section>
+          <p className="mt-2 px-1 text-[12px] leading-snug text-hint">{a.data.disclaimer}</p>
 
           <div className="mt-2 grid grid-cols-2 gap-2">
             <Kpi label="CTR" value={pct(t.ctr)} control={`контроль ${pct(c.ctr)}`} d={deltaOf(a.data.uplift.ctr)} />
@@ -183,7 +184,7 @@ export function AnalystHome() {
                 title="Симулятор" subtitle="Профиль → предложение, канал, частота" />
             </List>
           </Section>
-          <p className="mt-4 px-1 text-[12px] text-hint">Рандомизация A/B — на уровне группы компаний.</p>
+          <p className="mt-4 px-1 text-[12px] leading-snug text-hint">Рандомизация — по группе. Главная метрика пилота — CR90 по группам и компаниям; z-тест по показам — демонстрация расчёта.</p>
         </div>
       )}
     </Screen>
