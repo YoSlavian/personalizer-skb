@@ -137,14 +137,15 @@ export function ProfileScreen() {
     setBusyPersona(email);
     try {
       await demoPersona(email);
-      setPersonaOpen(false);
-      // Новая роль начинает с главной, а не с профиля прежней
-      navigate("/", { replace: true });
     } catch (e) {
       toast.show(e instanceof ApiError ? e.message : "Не удалось сменить роль", "error");
-    } finally {
       setBusyPersona(null);
+      return;
     }
+    // Новая роль начинает с главной, а не с профиля прежней (другую роль AuthProvider переводит туда сам, в одном переходе со входом).
+    // Профиль со шторкой при этом размонтируется — его состояние не трогаем: перерисовка со старой ролью и очищенным кэшем
+    // запросила бы данные прежней роли уже под новой сессией
+    navigate("/", { replace: true });
   };
 
   return (

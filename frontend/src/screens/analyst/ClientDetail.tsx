@@ -54,15 +54,16 @@ function ConsentPill({ refused, ok }: { refused: boolean; ok: string }) {
   return <Tag tone={refused ? "brand" : "neutral"}>{refused ? "отказ" : ok}</Tag>;
 }
 
+/** Загрузка и ошибка — тоже внутри <Screen>: в браузере остаётся «‹ Назад», в Telegram — отступ под его кнопками. */
 function DetailSkeleton() {
   return (
-    <div className="pt-5" aria-busy="true" aria-label="Загрузка">
-      <Skeleton className="h-8 w-3/4" />
-      <Skeleton className="mt-2 h-4 w-1/2" />
-      <Skeleton className="mt-3 h-6 w-36 rounded-full" />
-      <Skeleton className="mt-3 h-[42px] rounded-[12px]" />
-      <Skeleton className="mt-3 h-[420px] rounded-[22px]" />
-    </div>
+    <Screen title={<span className="skeleton block h-8 w-3/4" aria-hidden />} subtitle={<span className="skeleton block h-4 w-1/2" aria-hidden />}>
+      <div aria-busy="true" aria-label="Загрузка">
+        <Skeleton className="mt-3 h-6 w-36 rounded-full" />
+        <Skeleton className="mt-3 h-[42px] rounded-[12px]" />
+        <Skeleton className="mt-3 h-[420px] rounded-[22px]" />
+      </div>
+    </Screen>
   );
 }
 
@@ -108,7 +109,12 @@ export function ClientDetail() {
   });
 
   if (org.isLoading) return <DetailSkeleton />;
-  if (org.isError) return <div className="pt-6"><ErrorState error={org.error} onRetry={() => org.refetch()} /></div>;
+  if (org.isError)
+    return (
+      <Screen title="Клиент">
+        <div className="mt-4"><ErrorState error={org.error} onRetry={() => org.refetch()} /></div>
+      </Screen>
+    );
   const o = org.data!;
   const canEdit = me.user.role !== "client";
   const [name, city] = splitName(o.name);

@@ -17,14 +17,15 @@ import { TaskBadge, taskDescription } from "./Tasks";
 
 const PRIORITY = { high: "Высокий приоритет", normal: "Обычный приоритет", low: "Низкий приоритет" };
 
+/** Загрузка и ошибка — тоже внутри <Screen>: в браузере остаётся «‹ Назад», в Telegram — отступ под его кнопками. */
 function TaskSkeleton() {
   return (
-    <div className="pt-5" aria-busy="true" aria-label="Загрузка">
-      <Skeleton className="h-8 w-3/4" />
-      <Skeleton className="mt-2 h-4 w-1/3" />
-      <Skeleton className="mt-5 h-[168px] rounded-[22px]" />
-      <Skeleton className="mt-5 h-[128px] rounded-[22px]" />
-    </div>
+    <Screen title={<span className="skeleton block h-8 w-3/4" aria-hidden />} subtitle={<span className="skeleton block h-4 w-1/3" aria-hidden />}>
+      <div aria-busy="true" aria-label="Загрузка">
+        <Skeleton className="mt-4 h-[168px] rounded-[22px]" />
+        <Skeleton className="mt-5 h-[128px] rounded-[22px]" />
+      </div>
+    </Screen>
   );
 }
 
@@ -37,6 +38,8 @@ export function TaskDetail() {
   const key = ["task", Number(id)];
   const q = useQuery({ queryKey: key, queryFn: () => get<TD>(`/tasks/${id}`) });
   const [doneOpen, setDoneOpen] = useState(false);
+  // Когда открыли лист результата: MainButton остаётся на том же месте и меняет действие на «Отметить выполненной»
+  const doneOpenedAt = useRef(0);
   const [result, setResult] = useState("");
   const resultRef = useRef<HTMLTextAreaElement>(null);
   // Sheet при открытии фокусирует себя (после autoFocus) — фокус в поле ставим следом
@@ -60,7 +63,12 @@ export function TaskDetail() {
   });
 
   if (q.isLoading) return <TaskSkeleton />;
-  if (q.isError) return <div className="pt-6"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div>;
+  if (q.isError)
+    return (
+      <Screen title="Задача">
+        <div className="mt-4"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div>
+      </Screen>
+    );
   const t = q.data!;
   const canAct = me.user.role !== "analyst" && (t.assignee === null || t.assignee.id === me.user.id || me.user.role === "admin");
   const needsResult = t.kind === "update_crm_role";
@@ -68,14 +76,22 @@ export function TaskDetail() {
   const why = taskDescription(t.description, true);
   // В Telegram главное действие — MainButton (PrimaryAction ничего не рисует в странице)
   const inTg = !!tg.mainButton();
-  const markDone = () => change.mutate({ to: "done", comment: result.trim() });
+  const openDone = () => {
+    doneOpenedAt.current = Date.now();
+    setDoneOpen(true);
+  };
+  const markDone = () => {
+    // Второй тап двойного нажатия на MainButton не должен сразу закрыть задачу без результата (как в ApplicationDetail)
+    if (inTg && Date.now() - doneOpenedAt.current < 600) return;
+    change.mutate({ to: "done", comment: result.trim() });
+  };
   const doneBlocked = needsResult && !result.trim();
   // Главное действие по статусу: open → «Взять в работу», in_progress → «Выполнено».
   // Пока открыт лист результата, MainButton отправляет его («Отметить выполненной»), а своя кнопка в листе скрыта.
   const primary: { text: string; onClick: () => void; disabled?: boolean; loading?: boolean } | null = !canAct || !active ? null
     : doneOpen && inTg ? { text: "Отметить выполненной", onClick: markDone, disabled: doneBlocked, loading: change.isPending }
     : t.status === "open" ? { text: "Взять в работу", onClick: () => change.mutate({ to: "in_progress" }), disabled: change.isPending, loading: change.isPending && change.variables?.to === "in_progress" }
-    : { text: "Выполнено", onClick: () => setDoneOpen(true), disabled: change.isPending };
+    : { text: "Выполнено", onClick: openDone, disabled: change.isPending };
 
   return (
     <Screen
@@ -133,7 +149,7 @@ export function TaskDetail() {
       {canAct && (
         <div className={cx("grid gap-2", primary && !inTg ? "mt-1" : "mt-4")}>
           {t.status === "open" && (
-            <Button size="lg" block variant="secondary" disabled={change.isPending} onClick={() => setDoneOpen(true)}>Выполнено</Button>
+            <Button size="lg" block variant="secondary" disabled={change.isPending} onClick={openDone}>Выполнено</Button>
           )}
           {active && (
             <Button block variant="danger" disabled={change.isPending}

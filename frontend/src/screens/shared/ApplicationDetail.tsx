@@ -69,6 +69,8 @@ export function ApplicationDetail() {
   const q = useQuery({ queryKey: key, queryFn: () => get<AppDetail>(`/applications/${id}`) });
   const [sheet, setSheet] = useState<Action | null>(null);
   const [sheetText, setSheetText] = useState("");
+  // Для какого перехода набран sheetText: черновик одного действия не должен уйти комментарием другого
+  const sheetTextFor = useRef<AppStatus | null>(null);
   const [msg, setMsg] = useState("");
   const [internal, setInternal] = useState(false);
   const commentKey = useRef(newIdempotencyKey());
@@ -109,6 +111,12 @@ export function ApplicationDetail() {
   const run = async (a: Action) => {
     if (status.isPending) return;
     if (a.needsComment || a.prompt) {
+      // Причина отказа не должна оказаться комментарием к одобрению: текст и ошибка поля — только своего действия
+      if (sheetTextFor.current !== a.to) {
+        sheetTextFor.current = a.to;
+        setSheetText("");
+        status.reset();
+      }
       sheetOpenedAt.current = Date.now();
       setSheet(a);
       return;
@@ -117,16 +125,26 @@ export function ApplicationDetail() {
     status.mutate({ to: a.to });
   };
 
+  // Загрузка и ошибка — тоже внутри Screen: в браузере у них есть «‹ Назад» и смена темы, как у самой заявки
   if (q.isLoading)
     return (
-      <div className="space-y-3 pt-safe" aria-busy="true" aria-label="Загрузка">
-        <div className="space-y-2 pt-5"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-4 w-1/3" /></div>
-        <Skeleton className="h-[132px] rounded-[22px]" />
-        <Skeleton className="h-[120px] rounded-[22px]" />
-        <Skeleton className="h-[160px] rounded-[22px]" />
-      </div>
+      <Screen
+        title={<span className="skeleton block h-8 w-2/3" aria-hidden />}
+        subtitle={<span className="skeleton inline-block h-4 w-1/3 align-middle" aria-hidden />}
+      >
+        <div className="mt-4 space-y-3" aria-busy="true" aria-label="Загрузка">
+          <Skeleton className="h-[132px] rounded-[22px]" />
+          <Skeleton className="h-[120px] rounded-[22px]" />
+          <Skeleton className="h-[160px] rounded-[22px]" />
+        </div>
+      </Screen>
     );
-  if (q.isError) return <div className="pt-6"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div>;
+  if (q.isError)
+    return (
+      <Screen title="Заявка">
+        <div className="pt-6"><ErrorState error={q.error} onRetry={() => q.refetch()} /></div>
+      </Screen>
+    );
   const a = q.data!;
   const role = me.user.role;
   const staff = role !== "client";
@@ -283,7 +301,11 @@ export function ApplicationDetail() {
                 {sheet.label}
               </Button>
             )}
-            {sheet.needsComment && <p className="text-center text-[12px] text-hint">Клиент увидит комментарий и получит уведомление</p>}
+            {sheet.needsComment && (
+              <p className="text-center text-[12px] text-hint">
+                {role === "client" ? "Менеджер увидит ответ и получит уведомление" : "Клиент увидит комментарий и получит уведомление"}
+              </p>
+            )}
           </div>
         )}
       </Sheet>

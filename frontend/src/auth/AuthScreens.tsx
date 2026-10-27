@@ -264,10 +264,10 @@ export function TelegramOnboarding() {
     setBusy(email);
     setError(null);
     try {
+      // При успехе экран сменится сам (вход другой роли идёт переходом) — спиннер держим до конца, строки не оживают
       await demoPersona(email);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Не удалось войти");
-    } finally {
       setBusy(null);
     }
   };
@@ -289,7 +289,7 @@ export function BrowserLogin({ reason }: { reason?: "expired" | "logout" }) {
   const { loginWithPassword } = useAuth();
   const navigate = useNavigate();
   // После «Выйти» адрес остаётся прежним (например, /profile) — сбрасываем на главную, чтобы новая роль открылась с начала.
-  // При истёкшей сессии адрес не трогаем: после входа человек вернётся туда, где был.
+  // При истёкшей сессии адрес не трогаем: тот же человек вернётся туда, где был, а другую роль AuthProvider откроет с главной.
   useEffect(() => {
     if (reason === "logout") navigate("/", { replace: true });
   }, [reason, navigate]);
@@ -305,7 +305,6 @@ export function BrowserLogin({ reason }: { reason?: "expired" | "logout" }) {
       await loginWithPassword(email, demo.data.password);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Не удалось войти");
-    } finally {
       setBusy(null);
     }
   };

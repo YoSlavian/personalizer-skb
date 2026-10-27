@@ -60,10 +60,66 @@ export interface TelegramWebApp {
 declare global {
   interface Window {
     Telegram?: { WebApp?: TelegramWebApp };
+    TelegramWebviewProxy?: unknown;
   }
 }
 
+/** Официальный SDK Telegram Mini Apps: https://core.telegram.org/bots/webapps#initializing-mini-apps */
+const SDK_URL = "https://telegram.org/js/telegram-web-app.js?59";
+/** Сколько ждать SDK внутри Telegram, прежде чем открыться в режиме браузера (вход по почте). */
+const SDK_TIMEOUT_MS = 6000;
+/** SDK не успел загрузиться и приложение уже открыто как в браузере: поздно пришедший SDK не переключает режим на ходу. */
+let sdkAbandoned = false;
+
+/**
+ * Открыто ли приложение в Telegram — до загрузки SDK, по тем же признакам, что читает сам SDK: параметры запуска
+ * в хэше адреса (tgWebAppData, tgWebAppVersion, tgWebAppPlatform), они же в sessionStorage после перезагрузки,
+ * и нативный мост TelegramWebviewProxy (iOS, Android, Desktop).
+ */
+export function launchedInTelegram(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (/(?:^#|&)tgWebApp(?:Data|Version|Platform)=/.test(window.location.hash)) return true;
+  } catch {
+    /* нет доступа к адресу */
+  }
+  try {
+    const raw = window.sessionStorage.getItem("__telegram__initParams");
+    const p = raw ? (JSON.parse(raw) as Record<string, unknown> | null) : null;
+    if (p && (p.tgWebAppData || p.tgWebAppVersion)) return true;
+  } catch {
+    /* хранилище недоступно */
+  }
+  return typeof window.TelegramWebviewProxy !== "undefined";
+}
+
+/**
+ * SDK грузится только внутри Telegram: в обычном браузере он не нужен, а синхронный тег в <head> держал бы
+ * пустую страницу, пока отвечает telegram.org (медленная сеть, корпоративный прокси). Внутри Telegram ждём
+ * не дольше SDK_TIMEOUT_MS — дальше приложение открывается как в браузере.
+ */
+export function loadTelegramSdk(timeoutMs = SDK_TIMEOUT_MS): Promise<void> {
+  if (typeof window === "undefined" || window.Telegram?.WebApp || !launchedInTelegram()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    let settled = false;
+    const finish = (timedOut: boolean) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      if (timedOut) sdkAbandoned = true;
+      resolve();
+    };
+    const timer = window.setTimeout(() => finish(true), timeoutMs);
+    script.onload = () => finish(false);
+    script.onerror = () => finish(false);
+    script.src = SDK_URL;
+    document.head.appendChild(script);
+  });
+}
+
 export function getWebApp(): TelegramWebApp | null {
+  if (sdkAbandoned) return null;
   const wa = typeof window !== "undefined" ? window.Telegram?.WebApp : undefined;
   return wa && wa.initData ? wa : null;
 }

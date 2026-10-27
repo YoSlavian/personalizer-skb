@@ -126,6 +126,16 @@ function parentOf(pathname: string, roots: string[]): string {
 }
 
 /**
+ * Есть ли позади запись истории самого приложения. idx ведёт react-router: растёт при push, сохраняется при replace.
+ * Открыли по ссылке (в том числе ?route= — DeepLink подменяет адрес через replace) — idx 0, и navigate(-1)
+ * увёл бы со страницы приложения туда, откуда пришли, или в Telegram Web — по его собственной истории.
+ */
+function hasAppHistory(): boolean {
+  const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+  return idx > 0;
+}
+
+/**
  * Системная кнопка «Назад» Telegram: на вложенных экранах — обработчик маршрута внизу стека (lib/telegram → pushBack).
  * На корневых вкладках своего обработчика нет: кнопка скрыта («Закрыть»), пока шторка не положит свой поверх.
  */
@@ -138,7 +148,7 @@ function useTelegramBack(roots: string[]) {
     const parent = parentOf(location.pathname, roots);
     return tg.pushBack(() => {
       tg.haptic("light");
-      if (location.key !== "default" && window.history.length > 1) navigate(-1);
+      if (hasAppHistory()) navigate(-1);
       else navigate(parent, { replace: true });
     }, "route");
   }, [location, navigate, roots]);
@@ -163,7 +173,7 @@ export function AppShell() {
     const isRoot = roots.includes(location.pathname) || SELF_MANAGED_BACK.has(location.pathname);
     const parent = parentOf(location.pathname, roots);
     const back = () => {
-      if (location.key !== "default" && window.history.length > 1) navigate(-1);
+      if (hasAppHistory()) navigate(-1);
       else navigate(parent, { replace: true });
     };
     return { isRoot, back };
@@ -215,7 +225,28 @@ export function AppShell() {
 
 /** Кегли заголовка экрана: от 32 px вниз, пока длинное слово не влезет рядом с кнопками, а название — в две строки. */
 const TITLE_SIZES = [32, 28, 26, 24, 22];
+/** Меньше 22 px — только чтобы не рвать слово (узкие экраны 360–375 px): число строк здесь уже не важно. */
+const TITLE_WORD_SIZES = [20, 18];
 const TITLE_LEADING = 1.04; // как у .title-xl
+
+/**
+ * Влезает ли текст по ширине без переноса внутри слова. Мерим дробные ширины строк (Range): scrollWidth и clientWidth
+ * округлены до целых, и слово шире блока на доли пикселя проходило проверку, а потом рвалось («УЧАСТНИК / И»).
+ */
+function titleFits(el: HTMLElement): boolean {
+  if (el.scrollWidth > el.clientWidth + 1) return false;
+  const cs = getComputedStyle(el);
+  const right = el.getBoundingClientRect().right - (parseFloat(cs.borderRightWidth) || 0) - (parseFloat(cs.paddingRight) || 0);
+  const range = document.createRange();
+  if (typeof range.getClientRects !== "function") return true; // jsdom: раскладки нет
+  range.selectNodeContents(el);
+  const rects = range.getClientRects();
+  for (let i = 0; i < rects.length; i++) {
+    // Допуск меньше шага раскладки (1/64 px): слово шире строки хоть на долю пикселя будет перенесено
+    if (rects[i].width > 0 && rects[i].right > right + 0.01) return false;
+  }
+  return true;
+}
 
 function useFitTitle() {
   const ref = useRef<HTMLHeadingElement>(null);
@@ -227,16 +258,29 @@ function useFitTitle() {
     if (!force && sig === fitted.current) return;
     fitted.current = sig;
     el.style.overflowWrap = "normal"; // мерим без переноса внутри слова
-    let size = TITLE_SIZES[TITLE_SIZES.length - 1];
-    for (const s of TITLE_SIZES) {
+    const apply = (s: number) => {
       el.style.fontSize = `${s}px`;
+    };
+    let size: number | null = null;
+    for (const s of TITLE_SIZES) {
+      apply(s);
       const lines = Math.round(el.scrollHeight / (s * TITLE_LEADING));
-      if (el.scrollWidth <= el.clientWidth + 1 && lines <= 2) {
+      if (titleFits(el) && lines <= 2) {
         size = s;
         break;
       }
     }
-    el.style.fontSize = `${size}px`;
+    // В две строки не уложились: берём наименьший обычный кегль, а если и в нём слово не влезает — ещё мельче
+    if (size === null) {
+      for (const s of [TITLE_SIZES[TITLE_SIZES.length - 1], ...TITLE_WORD_SIZES]) {
+        apply(s);
+        if (titleFits(el)) {
+          size = s;
+          break;
+        }
+      }
+    }
+    apply(size ?? TITLE_WORD_SIZES[TITLE_WORD_SIZES.length - 1]);
     el.style.overflowWrap = ""; // последний рубеж — перенос внутри слова (класс break-words)
   });
   useLayoutEffect(() => fit.current());

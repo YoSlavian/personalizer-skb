@@ -78,7 +78,11 @@ function SegRow<T extends string>({ value, options, onChange, ariaLabel, disable
   );
 }
 
-/** Чипы одной строкой с горизонтальной прокруткой; выбранный чип докручивается в видимую часть. */
+/**
+ * Чипы одной строкой с горизонтальной прокруткой; выбранный чип докручивается в видимую часть.
+ * С мышью (pointer: fine — браузер на ноутбуке, Telegram Desktop) колесо не крутит строку вбок,
+ * поэтому там чипы переносятся на следующую строку и видны все сразу.
+ */
 function ChipRow<T extends string>({ value, options, onChange, ariaLabel }: {
   value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; ariaLabel: string;
 }) {
@@ -92,7 +96,7 @@ function ChipRow<T extends string>({ value, options, onChange, ariaLabel }: {
     if (left < box.scrollLeft || right > box.scrollLeft + box.clientWidth - 14) box.scrollTo({ left: Math.max(0, left - 4), behavior: "smooth" });
   }, [value, options.length]);
   return (
-    <div ref={ref} role="radiogroup" aria-label={ariaLabel} className="no-scrollbar relative -mr-3.5 flex gap-1.5 overflow-x-auto pr-3.5">
+    <div ref={ref} role="radiogroup" aria-label={ariaLabel} className="no-scrollbar relative -mr-3.5 flex gap-1.5 overflow-x-auto pr-3.5 pointer-fine:mr-0 pointer-fine:flex-wrap pointer-fine:pr-0">
       {options.map((o) => {
         const on = value === o.value;
         return (
@@ -318,15 +322,15 @@ export function Simulator() {
         </div>
       )}
 
-      {/* Пресеты клиентов A–D */}
+      {/* Пресеты клиентов A–D: на телефоне — карусель, с мышью — сетка 2×2, чтобы все четыре были видны */}
       <div role="radiogroup" aria-label="Пресет клиента"
-        className="no-scrollbar -mx-4 mt-4 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4">
+        className="no-scrollbar -mx-4 mt-4 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 pointer-fine:grid pointer-fine:grid-cols-2">
         {PRESETS.map((x) => {
           const on = preset === x.id;
           return (
             <button key={x.id} type="button" role="radio" aria-checked={on}
               onClick={() => { pickPreset(x.id, x.title, x.profile); tg.haptic("light"); }}
-              className={cx("w-[140px] shrink-0 snap-start rounded-[18px] px-3.5 py-3 text-left transition-[transform,background-color] duration-150 active:scale-[0.97]",
+              className={cx("w-[140px] shrink-0 snap-start rounded-[18px] pointer-fine:w-auto pointer-fine:min-w-0 px-3.5 py-3 text-left transition-[transform,background-color] duration-150 active:scale-[0.97]",
                 on ? "bg-brand text-white" : "bg-surface")}>
               <div className="truncate text-[15px] font-medium">{x.title}</div>
               <div className={cx("mt-0.5 line-clamp-2 h-8 text-[12px] leading-4", on ? "text-white/80" : "text-hint")}>{x.sub}</div>

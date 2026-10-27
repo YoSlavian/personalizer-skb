@@ -1,5 +1,17 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  startTransition,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useNavigate } from "react-router";
 import { ApiError, get, onUnauthorized, post, setToken } from "../lib/api";
 import { isTelegram, tg } from "../lib/telegram";
 import type { Me } from "../lib/types";
@@ -30,10 +42,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading" });
   const inTelegram = isTelegram();
   const reauthing = useRef(false);
+  // navigate меняется с каждым адресом, а accept должен оставаться стабильным (от него зависит boot) — держим свежий в ref
+  const navigate = useNavigate();
+  const navigateRef = useRef(navigate);
+  useLayoutEffect(() => {
+    navigateRef.current = navigate;
+  }, [navigate]);
+  // Кто был в приложении последним. После истёкшей сессии или отвязки тот же человек возвращается на прежний адрес,
+  // а другой (выбрал иную демо-роль, привязал другую учётную запись) начинает с главной своей роли
+  const lastUserId = useRef<number | null>(null);
 
   const accept = useCallback((me: Me) => {
     if (me.token) setToken(me.token);
-    setState({ status: "ready", me });
+    const prev = lastUserId.current;
+    lastUserId.current = me.user.id;
+    if (prev === null || prev === me.user.id) {
+      setState({ status: "ready", me });
+      return;
+    }
+    // Адрес прежнего пользователя (например, заявка клиента /applications/44) новой роли чужой: без вкладки, «Назад» не туда.
+    // react-router меняет адрес в переходе (startTransition) — вход кладём в тот же переход, иначе на кадр откроется чужой экран
+    startTransition(() => {
+      navigateRef.current("/", { replace: true });
+      setState({ status: "ready", me });
+    });
   }, []);
 
   const boot = useCallback(async () => {
