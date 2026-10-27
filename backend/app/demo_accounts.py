@@ -14,15 +14,34 @@ DEMO_ACCOUNTS = [
 DEMO_EMAILS = frozenset(a["email"] for a in DEMO_ACCOUNTS)
 
 
-def ensure_not_public_demo(user) -> None:  # noqa: ANN001
-    """На публичном сервере с DEMO_MODE пароль демо-учёток известен всем: запрещаем действия, которые ломают демо другим
-    (смена пароля, управление пользователями, активация правил)."""
+DEMO_CONSENTS_MESSAGE = (
+    "В публичном демо отказ от коммуникаций не сохраняется: учёткой пользуются все зрители. "
+    "Посмотреть, как отказ меняет решение, можно в симуляторе — тумблер «Отказ от всех маркетинговых коммуникаций»"
+)
+
+DEMO_CLIENT_CARD_MESSAGE = (
+    "В публичном демо карточку клиента не меняем: ею пользуются все зрители. "
+    "Откройте клиента в симуляторе — там можно менять любые признаки и сразу видеть новое решение"
+)
+DEMO_HINTS_MESSAGE = "В публичном демо подсказки пути не отключаются: учёткой пользуются все зрители"
+
+
+def is_public_demo_viewer(user) -> bool:  # noqa: ANN001
+    """Демо-учётка на публичном сервере с DEMO_MODE: её открывают все зрители сразу, поэтому её действия не должны
+    менять общие данные, по которым другие видят демо."""
     from app.config import get_settings
-    from app.errors import Forbidden
 
     s = get_settings()
-    if s.demo_mode and s.is_production and user.email in DEMO_EMAILS:
-        raise Forbidden("В публичном демо это действие отключено", code="demo_read_only")
+    return s.demo_mode and s.is_production and user.email in DEMO_EMAILS
+
+
+def ensure_not_public_demo(user, message: str = "В публичном демо это действие отключено") -> None:  # noqa: ANN001
+    """На публичном сервере с DEMO_MODE пароль демо-учёток известен всем: запрещаем действия, которые ломают демо другим
+    (смена пароля, управление пользователями, активация правил, отказ от коммуникаций)."""
+    from app.errors import Forbidden
+
+    if is_public_demo_viewer(user):
+        raise Forbidden(message, code="demo_read_only")
 
 
 # Персоны для быстрого входа в Telegram-боте в демо-режиме

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from app.api.deps import DB, Admin, Auth, CurrentUser, paginated, reload
 from app.api.serializers import notification_out, user_out
 from app.config import get_settings
-from app.demo_accounts import ensure_not_public_demo
+from app.demo_accounts import DEMO_HINTS_MESSAGE, ensure_not_public_demo
 from app.engine.catalog import catalog_payload
 from app.models import User
 from app.services import notifications as notif_svc
@@ -48,6 +48,9 @@ async def update_me(body: ProfileIn, user: CurrentUser, db: DB) -> dict:
 
 @router.patch("/me/settings")
 async def patch_settings(body: SettingsIn, user: CurrentUser, db: DB) -> dict:
+    if body.adaptive_hints is not None:
+        # Подсказки пути выключили бы адаптивный путь у всех зрителей общей демо-учётки
+        ensure_not_public_demo(user, DEMO_HINTS_MESSAGE)
     await update_settings(db, user, body.model_dump(exclude_none=True))
     await db.commit()
     return user_out(await reload(db, User, user.id))

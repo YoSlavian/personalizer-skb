@@ -89,6 +89,20 @@ describe("Client home", () => {
     expect(await screen.findByText("Ошибка сервера")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Повторить/ })).toBeInTheDocument();
   });
+
+  it("in the public demo hides the offer only for this viewer", async () => {
+    const offer = { ...home.offer!, communication_id: 77 };
+    mockApi([
+      { path: "/auth/me", body: me("client") },
+      { path: "/cabinet/home", body: { ...home, offer } },
+      { method: "POST", path: "/cabinet/offers/77/event", body: { id: 77, status: "shown", clicks: 0, demo_local: true } },
+    ]);
+    renderWithProviders(<ClientHome />, { withAuth: true, waitReady: true });
+    await userEvent.click(await screen.findByText("Не интересно"));
+    expect(await screen.findByText(/Скрыли у вас/)).toBeInTheDocument();
+    expect(screen.queryByText("Ликвидность к сезону закупок")).toBeNull();
+    expect(screen.getByText("Новых предложений нет")).toBeInTheDocument();
+  });
 });
 
 describe("Applications list", () => {

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import DB, AnalystOrAdmin, CurrentUser, Staff, client_ip, paginated
 from app.api.serializers import comm_out, contact_out, decision_out, org_out, user_brief
+from app.demo_accounts import DEMO_CLIENT_CARD_MESSAGE, DEMO_CONSENTS_MESSAGE, ensure_not_public_demo
 from app.engine.catalog import industry_name
 from app.errors import ValidationFailed
 from app.models.enums import AbVariant, ConsentChannel, IbRights, Industry, Position, SignalKind
@@ -97,6 +98,7 @@ async def get_org_detail(org_id: int, user: Staff, db: DB) -> dict:
 
 @router.patch("/orgs/{org_id}")
 async def patch_org(org_id: int, body: OrgPatch, request: Request, user: AnalystOrAdmin, db: DB) -> dict:
+    ensure_not_public_demo(user, DEMO_CLIENT_CARD_MESSAGE)
     data = body.model_dump(exclude_unset=True)
     if not data:
         raise ValidationFailed("Нет изменений")
@@ -107,6 +109,7 @@ async def patch_org(org_id: int, body: OrgPatch, request: Request, user: Analyst
 
 @router.patch("/orgs/{org_id}/contacts/{contact_id}")
 async def patch_contact(org_id: int, contact_id: int, body: ContactPatch, request: Request, user: Staff, db: DB) -> dict:
+    ensure_not_public_demo(user, DEMO_CLIENT_CARD_MESSAGE)
     await org_svc.update_contact(db, user, org_id, contact_id, body.model_dump(exclude_unset=True), ip=client_ip(request))
     await db.commit()
     return await get_org_detail(org_id, user, db)
@@ -114,6 +117,7 @@ async def patch_contact(org_id: int, contact_id: int, body: ContactPatch, reques
 
 @router.post("/orgs/{org_id}/signals")
 async def post_signal(org_id: int, body: SignalIn, request: Request, user: Staff, db: DB) -> dict:
+    ensure_not_public_demo(user, DEMO_CLIENT_CARD_MESSAGE)
     await org_svc.add_signal(db, user, org_id, body.kind, body.days, body.note, ip=client_ip(request))
     await db.commit()
     return await get_org_detail(org_id, user, db)
@@ -121,6 +125,7 @@ async def post_signal(org_id: int, body: SignalIn, request: Request, user: Staff
 
 @router.delete("/orgs/{org_id}/signals/{signal_id}")
 async def delete_signal(org_id: int, signal_id: int, request: Request, user: Staff, db: DB) -> dict:
+    ensure_not_public_demo(user, DEMO_CLIENT_CARD_MESSAGE)
     await org_svc.remove_signal(db, user, org_id, signal_id, ip=client_ip(request))
     await db.commit()
     return await get_org_detail(org_id, user, db)
@@ -128,6 +133,7 @@ async def delete_signal(org_id: int, signal_id: int, request: Request, user: Sta
 
 @router.put("/orgs/{org_id}/consents")
 async def put_consents(org_id: int, body: ConsentsIn, request: Request, user: Staff, db: DB) -> dict:
+    ensure_not_public_demo(user, DEMO_CONSENTS_MESSAGE)
     values = {ConsentChannel(k): v for k, v in body.model_dump(exclude_none=True).items()}
     await org_svc.set_consents(db, user, org_id, values, ip=client_ip(request))
     await db.commit()
