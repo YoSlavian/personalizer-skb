@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellOff, ChatCircle, ChevronRight, FileEdit, Info, Lightbulb, Plus, UserRound, X } from "../../components/icons";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useMe } from "../../auth/AuthProvider";
 import { Screen } from "../../components/Layout";
@@ -10,6 +11,9 @@ import { get, post } from "../../lib/api";
 import { useStoredState } from "../../lib/hooks";
 import type { CabinetHome } from "../../lib/types";
 import { ago, amountNb, AppRow } from "../shared/AppRow";
+
+/** Публичное демо: предложение, скрытое в этой вкладке, — до перезагрузки страницы (на сервере учётка общая) */
+let demoHiddenOffer: number | null = null;
 
 function initials(name: string): string {
   return name
@@ -67,11 +71,15 @@ export function ClientHome() {
   const home = useQuery({ queryKey: ["cabinet-home"], queryFn: () => get<CabinetHome>("/cabinet/home") });
 
   const offerEvent = useMutation({
-    mutationFn: ({ id, kind }: { id: number; kind: "clicked" | "hidden" }) => post(`/cabinet/offers/${id}/event`, { kind }),
+    mutationFn: ({ id, kind }: { id: number; kind: "clicked" | "hidden" }) =>
+      post<{ demo_local?: boolean }>(`/cabinet/offers/${id}/event`, { kind }),
   });
+  const [hiddenHere, setHiddenHere] = useState(demoHiddenOffer);
 
   const firstName = me.user.full_name.split(" ")[0];
-  const h = home.data;
+  const data = home.data;
+  // Публичное демо: скрытое зрителем предложение убираем только у него, общая учётка не меняется
+  const h = data && data.offer && data.offer.communication_id === hiddenHere ? { ...data, offer: null } : data;
 
   const openOffer = async () => {
     if (!h?.offer) return;
@@ -85,7 +93,13 @@ export function ClientHome() {
   const hideOffer = async () => {
     if (!h?.offer) return;
     try {
-      await offerEvent.mutateAsync({ id: h.offer.communication_id, kind: "hidden" });
+      const r = await offerEvent.mutateAsync({ id: h.offer.communication_id, kind: "hidden" });
+      if (r.demo_local) {
+        demoHiddenOffer = h.offer.communication_id;
+        setHiddenHere(demoHiddenOffer);
+        toast.show("Скрыли у вас. В публичном демо это не меняет предложение для других зрителей");
+        return;
+      }
       toast.show("Скрыли предложение. Не покажем его 30 дней");
       await qc.invalidateQueries({ queryKey: ["cabinet-home"] });
     } catch {

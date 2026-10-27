@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import keyboards as kb
 from app.config import get_settings
-from app.demo_accounts import BOT_DEMO_PERSONAS
+from app.demo_accounts import BOT_DEMO_PERSONAS, is_public_demo_viewer
 from app.engine.catalog import product_name
 from app.errors import AppError
 from app.models import Application, Notification, Task, TelegramLink, User
@@ -237,6 +237,10 @@ async def cb_offer(query: CallbackQuery, db: AsyncSession, user: User | None) ->
         comm = await register_interaction(db, user, int(comm_id), kind)
     except AppError as e:
         await query.answer(e.message, show_alert=True)
+        return
+    if kind != "clicked" and is_public_demo_viewer(user):
+        # Публичное демо: register_interaction не меняет общую учётку, поэтому и не обещаем паузу на 30 дней
+        await query.answer("В публичном демо скрытие и отписка не сохраняются: учёткой пользуются все зрители", show_alert=True)
         return
     if kind == "hidden":
         await query.answer("Скрыли это предложение — больше не покажем его 30 дней")

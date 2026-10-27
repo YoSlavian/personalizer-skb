@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import like_pattern
 from app.db import utcnow
+from app.demo_accounts import is_public_demo_viewer
 from app.errors import NotFound, ValidationFailed
 from app.models import Communication, Organization, User
 from app.models.enums import PLACEMENT_CHANNELS, AbVariant, Channel, CommStatus, ConsentChannel
@@ -63,6 +64,10 @@ async def register_interaction(session: AsyncSession, user: User, comm_id: int, 
     now = utcnow()
     if comm.status == CommStatus.blocked:
         raise ValidationFailed("Коммуникация не была отправлена")
+    if kind in ("clicked", "hidden", "unsubscribe_push") and is_public_demo_viewer(user):
+        # Публичное демо: учётку клиента открывают все зрители. Их клики и скрытия не пишем в общий журнал,
+        # иначе стоп-кран или пауза сменят главное предложение у всех остальных
+        return comm
     if kind == "shown":
         if comm.shown_at is None:
             comm.shown_at = now

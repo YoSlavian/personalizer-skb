@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import DB, Client, client_ip
 from app.api.serializers import app_out
+from app.demo_accounts import DEMO_CONSENTS_MESSAGE, ensure_not_public_demo, is_public_demo_viewer
 from app.models.enums import ConsentChannel
 from app.services import cabinet as cab_svc
 from app.services import journey as j_svc
@@ -58,7 +59,8 @@ async def showcase(user: Client, db: DB, product: Annotated[str | None, Query(ma
 async def offer_event(comm_id: int, body: OfferEventIn, request: Request, user: Client, db: DB) -> dict:
     c = await register_interaction(db, user, comm_id, body.kind, ip=client_ip(request))
     await db.commit()
-    return {"id": c.id, "status": c.status.value, "clicks": c.clicks}
+    # demo_local: в публичном демо реакция действует только у этого зрителя (см. register_interaction)
+    return {"id": c.id, "status": c.status.value, "clicks": c.clicks, "demo_local": is_public_demo_viewer(user)}
 
 
 @router.get("/consents")
@@ -69,6 +71,7 @@ async def get_consents(user: Client, db: DB) -> dict:
 
 @router.put("/consents")
 async def put_consents(body: ConsentsIn, request: Request, user: Client, db: DB) -> dict:
+    ensure_not_public_demo(user, DEMO_CONSENTS_MESSAGE)
     contact = await client_contact(db, user)
     values = {ConsentChannel(k): v for k, v in body.model_dump(exclude_none=True).items()}
     await set_consents(db, user, contact.org_id, values, ip=client_ip(request))

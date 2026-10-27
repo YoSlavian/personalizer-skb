@@ -44,3 +44,42 @@ async def test_public_demo_allows_only_campaign_preview(analyst, monkeypatch: py
     blocked = await analyst.post("/api/campaigns/run", json={})
     assert blocked.status_code == 403 and blocked.json()["error"]["code"] == "demo_read_only"
     assert (await analyst.post("/api/campaigns/run", json={"dry_run": True})).status_code == 200
+
+
+async def test_public_demo_viewer_clicks_do_not_change_shared_offer(fd_client, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Учёткой ФД пользуются все зрители: два клика без заявки не должны включать стоп-кран для остальных
+    s = get_settings()
+    monkeypatch.setattr(s, "demo_mode", True)
+    monkeypatch.setattr(s, "environment", "production")
+    offer = (await fd_client.get("/api/cabinet/home")).json()["offer"]
+    for _ in range(3):
+        r = (await fd_client.post(f"/api/cabinet/offers/{offer['communication_id']}/event", json={"kind": "clicked"})).json()
+        assert r["demo_local"] is True
+    hidden = (await fd_client.post(f"/api/cabinet/offers/{offer['communication_id']}/event", json={"kind": "hidden"})).json()
+    assert hidden["demo_local"] is True and hidden["status"] != "hidden"
+    after = (await fd_client.get("/api/cabinet/home")).json()["offer"]
+    assert after["product_code"] == offer["product_code"]
+    blocked = await fd_client.put("/api/cabinet/consents", json={"all": True})
+    assert blocked.status_code == 403 and blocked.json()["error"]["code"] == "demo_read_only"
+    assert (await fd_client.get("/api/cabinet/home")).json()["suppressed"] is False
+
+
+async def test_public_demo_staff_cannot_change_consents(manager, monkeypatch: pytest.MonkeyPatch) -> None:
+    s = get_settings()
+    monkeypatch.setattr(s, "demo_mode", True)
+    monkeypatch.setattr(s, "environment", "production")
+    org = (await manager.get("/api/orgs?size=1")).json()["items"][0]
+    r = await manager.put(f"/api/orgs/{org['id']}/consents", json={"all": True})
+    assert r.status_code == 403 and r.json()["error"]["code"] == "demo_read_only"
+    # Карточка клиента общая для всех зрителей: события и роли контактов в публичном демо не меняем
+    r = await manager.post(f"/api/orgs/{org['id']}/signals", json={"kind": "fx_payment", "days": 7})
+    assert r.status_code == 403 and r.json()["error"]["code"] == "demo_read_only"
+
+
+async def test_public_demo_viewer_cannot_turn_off_journey_hints(fd_client, monkeypatch: pytest.MonkeyPatch) -> None:
+    s = get_settings()
+    monkeypatch.setattr(s, "demo_mode", True)
+    monkeypatch.setattr(s, "environment", "production")
+    r = await fd_client.patch("/api/me/settings", json={"adaptive_hints": False})
+    assert r.status_code == 403 and r.json()["error"]["code"] == "demo_read_only"
+    assert (await fd_client.patch("/api/me/settings", json={"notify_offers": True})).status_code == 200
