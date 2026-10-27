@@ -169,20 +169,23 @@ function ResultSkeleton() {
   );
 }
 
+// Цели переходов («Было / стало», «Все продукты», плашка) встают верхом под полосу кнопок Telegram: scroll-mt = --app-top + 16 px
+const JUMP_TARGET = "scroll-mt-[calc(var(--app-top)+16px)]";
 const scrollToId = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-// Видимая полоса экрана: сверху — запас под шапку Telegram, снизу — таб-бар и сама плашка
-const BAND_TOP = 72;
+// Видимая полоса экрана: сверху — статус-бар и кнопки Telegram (берём scroll-margin блока результата: --app-top + 16 px),
+// снизу — таб-бар и сама плашка
 const BAND_BOTTOM = 96;
 const MIN_VISIBLE = 120;
 /** Где блок результата относительно экрана: в кадре (видно ≥120 px) — null, иначе куда крутить. */
 function resultOffscreen(el: HTMLElement | null): "down" | "up" | null {
   if (!el) return null;
   const rect = el.getBoundingClientRect();
+  const bandTop = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
   const bottomEdge = window.innerHeight - BAND_BOTTOM;
-  const visible = Math.min(rect.bottom, bottomEdge) - Math.max(rect.top, BAND_TOP);
+  const visible = Math.min(rect.bottom, bottomEdge) - Math.max(rect.top, bandTop);
   if (visible >= Math.min(MIN_VISIBLE, rect.height)) return null;
-  return rect.top >= BAND_TOP ? "down" : "up";
+  return rect.top >= bandTop ? "down" : "up";
 }
 
 export function Simulator() {
@@ -373,7 +376,7 @@ export function Simulator() {
       </div>
 
       {/* Что получит клиент */}
-      <div id="sim-result" ref={resultRef} className="scroll-mt-4">
+      <div id="sim-result" ref={resultRef} className={JUMP_TARGET}>
         <Section
           title={<span className="inline-flex items-center gap-2">Что получит клиент{sim.isFetching && r && <Spinner className="size-3.5 text-hint" />}</span>}
           action={r && <button type="button" onClick={() => scrollToId("sim-asis")} className="-my-2 h-9 text-[13px] font-medium text-link">Было / стало</button>}
@@ -413,7 +416,7 @@ export function Simulator() {
             <AllProducts id="sim-all" r={r} open={allOpen} onToggle={() => setAllOpen((v) => !v)} />
           </Section>
 
-          <div id="sim-asis" className="scroll-mt-4">
+          <div id="sim-asis" className={JUMP_TARGET}>
             <Section title="Было / стало">
               <AsIsToBe r={r} />
             </Section>
@@ -519,10 +522,11 @@ export function Simulator() {
         </Button>
       </Sheet>
 
-      {/* «Предложение изменилось»: результат ниже или выше экрана */}
+      {/* «Предложение изменилось»: результат ниже или выше экрана.
+          Над таб-баром: --app-bottom (тот же нижний отступ, что у таб-бара; на Android env() = 0) + 72 = таб-бар 58 px + рамка 1 px + зазор 13 px */}
       {pill && createPortal(
         <div className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4"
-          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--tg-content-safe-area-inset-bottom, 0px) + 76px)" }}>
+          style={{ bottom: "calc(var(--app-bottom) + 72px)" }}>
           <button type="button" onClick={goToResult}
             className="pointer-events-auto inline-flex h-11 items-center gap-2 rounded-full bg-text px-5 text-[14px] font-medium text-bg shadow-[0_8px_24px_rgba(0,0,0,0.18)] ring-2 ring-bg transition-transform active:scale-[0.97] animate-fade-up">
             Предложение изменилось

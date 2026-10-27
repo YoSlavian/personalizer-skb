@@ -247,7 +247,7 @@ export function ScoreList({ r }: { r: DecisionResult }) {
 /** Раскрывающийся список всех продуктов под конвейером. */
 export function AllProducts({ r, open, onToggle, id }: { r: DecisionResult; open: boolean; onToggle: () => void; id?: string }) {
   return (
-    <div id={id} className="mt-2 scroll-mt-4">
+    <div id={id} className="mt-2 scroll-mt-[calc(var(--app-top)+16px)]">
       <button type="button" onClick={onToggle} aria-expanded={open}
         className="flex h-11 w-full items-center justify-center gap-1.5 rounded-full bg-surface text-[14px] font-medium transition-transform active:scale-[0.97]">
         Все продукты ({r.rows.length})

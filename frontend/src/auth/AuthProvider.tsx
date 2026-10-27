@@ -70,7 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               accept(me);
               void qc.invalidateQueries();
             })
-            .catch(() => setState({ status: "login", reason: "expired" }))
+            .catch((e) => {
+              qc.clear();
+              // Telegram отвязали (или пользователя отключили), пока шла сессия: вход по паролю его не привяжет —
+              // показываем онбординг с «Войти и привязать Telegram», как при первом запуске
+              if (e instanceof ApiError && e.code === "telegram_not_linked") setState({ status: "unlinked" });
+              else setState({ status: "login", reason: "expired" });
+            })
             .finally(() => {
               reauthing.current = false;
             });

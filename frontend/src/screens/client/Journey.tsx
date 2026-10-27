@@ -263,9 +263,20 @@ export function Journey() {
     tg.haptic("light");
     if (step === "form" && CALCULABLE.has(product) && !draftId) setStep("calc");
     else if (step === "calc") setStep("showcase");
-    else navigate(-1);
+    else {
+      // Путь открыт первым экраном (пуш бота с ?route=, прямая ссылка): своей записи истории до него нет —
+      // navigate(-1) ничего не делает или уводит из приложения. idx ведёт сам react-router и после replace в DeepLink он 0.
+      const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+      if (idx > 0) navigate(-1);
+      else navigate("/", { replace: true });
+    }
   }, [step, product, draftId, navigate]);
-  useEffect(() => (step === "done" ? tg.backButton(null) : tg.backButton(goBack)), [goBack, step]);
+  // После отправки «назад» ведёт на главную, а не обратно в отправленную форму (и не закрывает приложение на Android)
+  const goHome = useCallback(() => {
+    tg.haptic("light");
+    navigate("/", { replace: true });
+  }, [navigate]);
+  useEffect(() => tg.backButton(step === "done" ? goHome : goBack), [goBack, goHome, step]);
 
   // Новый шаг открывается сверху: шаги, заголовок и сравнение не остаются за краем экрана
   const firstStep = useRef(true);
@@ -599,7 +610,12 @@ export function Journey() {
             </div>
           </div>
           <div className="mt-6 space-y-2">
-            <Button block size="lg" onClick={() => navigate(`/applications/${result.id}`, { replace: true })}>Открыть заявку</Button>
+            {/* В Telegram главное действие — MainButton внизу окна, в браузере — красная кнопка на месте */}
+            {inTelegram ? (
+              <PrimaryAction text="Открыть заявку" onClick={() => navigate(`/applications/${result.id}`, { replace: true })} />
+            ) : (
+              <Button block size="lg" onClick={() => navigate(`/applications/${result.id}`, { replace: true })}>Открыть заявку</Button>
+            )}
             <Button block variant="secondary" onClick={() => navigate("/", { replace: true })}>На главную</Button>
           </div>
         </div>

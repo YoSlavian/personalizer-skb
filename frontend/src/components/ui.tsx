@@ -2,6 +2,8 @@ import { AlertTriangle, ChevronRight, Inbox, Lock, RefreshCw, WifiOff, X } from 
 import { type ButtonHTMLAttributes, type ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ApiError } from "../lib/api";
+import { useLatest } from "../lib/hooks";
+import { tg } from "../lib/telegram";
 import type { AppStatus, TaskStatus } from "../lib/types";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
@@ -326,13 +328,25 @@ export function Toggle({ checked, onChange, label, description, disabled }: { ch
 
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Свежий onClose без переподписки: родители передают стрелку, новую на каждый рендер, и эффект
+  // перезапускался бы при каждом вводе — фокус уходил из поля в шторку после первой буквы
+  const close = useLatest(onClose);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
     window.addEventListener("keydown", onKey);
     ref.current?.focus();
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    // Системная «Назад» Telegram сначала закрывает шторку, а не уводит с экрана под ней.
+    // На корневой вкладке кнопка появляется на время показа шторки вместо «Закрыть» (Android: жест «назад»)
+    const offBack = tg.pushBack(() => {
+      tg.haptic("light");
+      close.current();
+    }, "overlay");
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      offBack();
+    };
+  }, [open, close]);
   if (!open) return null;
   // Портал в body: fixed-позиционирование не зависит от анимаций и transform родителей
   return createPortal(

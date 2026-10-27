@@ -5,11 +5,12 @@ import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useMe } from "../../auth/AuthProvider";
 import { Screen } from "../../components/Layout";
+import { PrimaryAction } from "../../components/PrimaryAction";
 import { useToast } from "../../components/toast";
 import { Banner, Button, cx, ErrorState, Field, IconBadge, inputCls, List, Row, Section, Sheet, Skeleton, Spinner, StatusPill, Toggle } from "../../components/ui";
 import { ApiError, get, newIdempotencyKey, post } from "../../lib/api";
 import { date, dateTime, mln } from "../../lib/format";
-import { tg } from "../../lib/telegram";
+import { isTelegram, tg } from "../../lib/telegram";
 import type { ApplicationDetail as AppDetail, AppStatus } from "../../lib/types";
 import { ago } from "./AppRow";
 import { Timeline } from "./Timeline";
@@ -71,6 +72,7 @@ export function ApplicationDetail() {
   const [msg, setMsg] = useState("");
   const [internal, setInternal] = useState(false);
   const commentKey = useRef(newIdempotencyKey());
+  const sheetOpenedAt = useRef(0);
 
   const setData = (data: AppDetail) => {
     qc.setQueryData(key, data);
@@ -107,6 +109,7 @@ export function ApplicationDetail() {
   const run = async (a: Action) => {
     if (status.isPending) return;
     if (a.needsComment || a.prompt) {
+      sheetOpenedAt.current = Date.now();
       setSheet(a);
       return;
     }
@@ -128,6 +131,16 @@ export function ApplicationDetail() {
   const role = me.user.role;
   const staff = role !== "client";
   const actions = actionsFor(role, a.status, a.author?.id === me.user.id);
+  // В Telegram главное действие — нативная MainButton внизу окна; остальные (отказ, уточнения) остаются на странице
+  const inTelegram = isTelegram();
+  const primary = inTelegram ? actions.find((x) => x.variant === "primary") : undefined;
+  const inPage = primary ? actions.filter((x) => x !== primary) : actions;
+  const submitSheet = () => {
+    if (!sheet) return;
+    // MainButton при открытии листа остаётся на том же месте: второй тап двойного нажатия не должен сразу отправить решение
+    if (inTelegram && Date.now() - sheetOpenedAt.current < 600) return;
+    status.mutate({ to: sheet.to, comment: sheetText.trim() });
+  };
   const closed = ["approved", "declined", "cancelled"].includes(a.status);
   const longTitle = a.product_name.length > 18;
   const canComment = !["cancelled"].includes(a.status) && role !== "analyst";
@@ -176,14 +189,19 @@ export function ApplicationDetail() {
         </button>
       )}
 
-      {actions.length > 0 && (
+      {inPage.length > 0 && (
         <div className="mt-3 grid gap-2">
-          {actions.map((x) => (
+          {inPage.map((x) => (
             <Button key={x.to + x.label} variant={x.variant} block loading={status.isPending && status.variables?.to === x.to} disabled={status.isPending} onClick={() => run(x)}>
               {x.label}
             </Button>
           ))}
         </div>
+      )}
+      {/* Пока открыт лист статуса, MainButton принадлежит ему: две PrimaryAction разом сработали бы на одно нажатие */}
+      {primary && !sheet && (
+        <PrimaryAction text={primary.label} onClick={() => void run(primary)} disabled={status.isPending}
+          loading={status.isPending && status.variables?.to === primary.to} />
       )}
 
       <Section title="Участники">
@@ -257,10 +275,14 @@ export function ApplicationDetail() {
             <Field label={sheet.prompt ?? "Комментарий"} htmlFor="sheet-text" error={sheet.needsComment && status.error instanceof ApiError ? status.error.fieldErrors.comment : undefined}>
               <textarea id="sheet-text" className={cx(inputCls, "min-h-28 resize-none bg-subtle!")} value={sheetText} maxLength={2000} onChange={(e) => setSheetText(e.target.value)} autoFocus />
             </Field>
-            <Button block size="lg" variant={sheet.variant === "danger" ? "dark" : "primary"} disabled={!!sheet.needsComment && !sheetText.trim()} loading={status.isPending}
-              onClick={() => status.mutate({ to: sheet.to, comment: sheetText.trim() })}>
-              {sheet.label}
-            </Button>
+            {inTelegram ? (
+              <PrimaryAction text={sheet.label} onClick={submitSheet} disabled={!!sheet.needsComment && !sheetText.trim()} loading={status.isPending} />
+            ) : (
+              <Button block size="lg" variant={sheet.variant === "danger" ? "dark" : "primary"} disabled={!!sheet.needsComment && !sheetText.trim()} loading={status.isPending}
+                onClick={submitSheet}>
+                {sheet.label}
+              </Button>
+            )}
             {sheet.needsComment && <p className="text-center text-[12px] text-hint">Клиент увидит комментарий и получит уведомление</p>}
           </div>
         )}

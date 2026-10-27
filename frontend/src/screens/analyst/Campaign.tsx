@@ -4,8 +4,9 @@ import { ArrowRightLeft, Ban, Briefcase, ClipboardList, type IconType, Megaphone
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Screen } from "../../components/Layout";
+import { PrimaryAction } from "../../components/PrimaryAction";
 import { useToast } from "../../components/toast";
-import { Banner, Button, cx, ErrorState, IconBadge, List, ListSkeleton, Row, Section, Skeleton, Tag } from "../../components/ui";
+import { Banner, cx, ErrorState, IconBadge, List, ListSkeleton, Row, Section, Skeleton, Tag } from "../../components/ui";
 import { ApiError, get, post } from "../../lib/api";
 import { dateTime } from "../../lib/format";
 import { tg } from "../../lib/telegram";
@@ -156,14 +157,14 @@ export function Campaign() {
         {run.data ? <StatsView s={run.data} /> : preview.data && !preview.isPending && <StatsView s={preview.data} />}
       </Section>
 
-      <div className="mt-5">
-        {run.data ? (
-          <Button block size="lg" variant="secondary" onClick={() => navigate("/pilot")}>К метрикам пилота</Button>
-        ) : (
-          <Button block size="lg" icon={<Megaphone className="size-5" weight="fill" />} loading={run.isPending} disabled={!preview.data} onClick={confirmRun}>Запустить кампанию</Button>
-        )}
-        <p className="mt-2 px-1 text-[12px] leading-snug text-hint">Повторный запуск сразу после первого покажет лимиты частоты: большинство коммуникаций остановит политика.</p>
-      </div>
+      {/* Главное действие — MainButton Telegram (в браузере — закреплённая кнопка над вкладками).
+          Прямой потомок экрана, чтобы в браузере кнопка держалась внизу, пока листают предпросмотр. */}
+      {run.data ? (
+        <PrimaryAction text="К метрикам пилота" onClick={() => navigate("/pilot")} />
+      ) : (
+        <PrimaryAction text="Запустить кампанию" onClick={confirmRun} loading={run.isPending} disabled={!preview.data} />
+      )}
+      <p className={cx("px-1 text-[12px] leading-snug text-hint", tg.mainButton() ? "mt-5" : "mt-1")}>Повторный запуск сразу после первого покажет лимиты частоты: большинство коммуникаций остановит политика.</p>
 
       <Section title="Последние запуски">
         {runs.isLoading ? <ListSkeleton rows={2} /> : (

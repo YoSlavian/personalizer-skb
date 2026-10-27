@@ -116,22 +116,31 @@ function useRouteScroll() {
 /** Корневая ли вкладка открыта: на вложенных экранах вне Telegram Screen рисует свою кнопку «назад». */
 const RootContext = createContext<{ isRoot: boolean; back: () => void }>({ isRoot: true, back: () => {} });
 
-/** Системная кнопка «Назад» Telegram: видна на вложенных экранах, скрыта на корневых вкладках. */
+/**
+ * Куда вести «назад», когда истории нет (открыли по ссылке): на родительскую вкладку, если она есть у роли,
+ * иначе на главную. Иначе ссылка /tasks/12 у клиента вела бы на /tasks — ещё одну «Страницу не найдено».
+ */
+function parentOf(pathname: string, roots: string[]): string {
+  const parent = "/" + pathname.split("/").filter(Boolean).slice(0, -1).join("/");
+  return roots.includes(parent) ? parent : "/";
+}
+
+/**
+ * Системная кнопка «Назад» Telegram: на вложенных экранах — обработчик маршрута внизу стека (lib/telegram → pushBack).
+ * На корневых вкладках своего обработчика нет: кнопка скрыта («Закрыть»), пока шторка не положит свой поверх.
+ */
 function useTelegramBack(roots: string[]) {
   const location = useLocation();
   const navigate = useNavigate();
   useEffect(() => {
     if (SELF_MANAGED_BACK.has(location.pathname)) return; // экран сам управляет шагами «назад»
-    if (roots.includes(location.pathname)) {
-      tg.backButton(null);
-      return;
-    }
-    const parent = "/" + location.pathname.split("/").filter(Boolean).slice(0, -1).join("/");
-    return tg.backButton(() => {
+    if (roots.includes(location.pathname)) return;
+    const parent = parentOf(location.pathname, roots);
+    return tg.pushBack(() => {
       tg.haptic("light");
       if (location.key !== "default" && window.history.length > 1) navigate(-1);
-      else navigate(parent || "/", { replace: true });
-    });
+      else navigate(parent, { replace: true });
+    }, "route");
   }, [location, navigate, roots]);
 }
 
@@ -146,14 +155,16 @@ export function AppShell() {
   useTelegramBack(roots);
   useRouteScroll();
   const activeTab = useActiveTab(tabs);
+  // Отписка прячет кнопку: после выхода (экран входа/привязки) «Настройки» в меню Telegram не висит без действия.
+  // «Назад» прячется сама — обработчики маршрута и шторок снимаются из стека вместе с оболочкой.
   useEffect(() => tg.settingsButton(() => navigate("/profile")), [navigate]);
   const location = useLocation();
   const nav = useMemo(() => {
     const isRoot = roots.includes(location.pathname) || SELF_MANAGED_BACK.has(location.pathname);
-    const parent = "/" + location.pathname.split("/").filter(Boolean).slice(0, -1).join("/");
+    const parent = parentOf(location.pathname, roots);
     const back = () => {
       if (location.key !== "default" && window.history.length > 1) navigate(-1);
-      else navigate(parent || "/", { replace: true });
+      else navigate(parent, { replace: true });
     };
     return { isRoot, back };
   }, [roots, location, navigate]);

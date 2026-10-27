@@ -137,8 +137,10 @@ export function ClientDetail() {
             <>
               {decision.data.group_level && <div className="mb-3"><Banner tone="info">Решение на уровне группы: одно предложение ФД головной. Профиль — головной компании.</Banner></div>}
               <DecisionView r={decision.data.result} variant={decision.data.variant} industryName={industryName} />
+              {/* /simulator есть у всех сотрудников и не корневая вкладка: «Назад» Telegram вернёт в карточку клиента.
+                  «/» у менеджера — «Портфель», там профиль клиента потерялся бы. */}
               <Button className="mt-4" block size="lg" variant="secondary" icon={<SlidersHorizontal className="size-5" />}
-                onClick={() => navigate("/", { state: { profile: decision.data!.profile } })}>
+                onClick={() => navigate("/simulator", { state: { profile: decision.data!.profile } })}>
                 Открыть в симуляторе
               </Button>
             </>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useMe } from "../../auth/AuthProvider";
 import { Screen } from "../../components/Layout";
+import { PrimaryAction } from "../../components/PrimaryAction";
 import { useToast } from "../../components/toast";
 import { Banner, Button, cx, ErrorState, Field, IconBadge, inputCls, List, Row, Section, Sheet, Skeleton, Tag, TaskPill } from "../../components/ui";
 import { ApiError, get, post } from "../../lib/api";
@@ -65,6 +66,16 @@ export function TaskDetail() {
   const needsResult = t.kind === "update_crm_role";
   const active = t.status === "open" || t.status === "in_progress";
   const why = taskDescription(t.description, true);
+  // В Telegram главное действие — MainButton (PrimaryAction ничего не рисует в странице)
+  const inTg = !!tg.mainButton();
+  const markDone = () => change.mutate({ to: "done", comment: result.trim() });
+  const doneBlocked = needsResult && !result.trim();
+  // Главное действие по статусу: open → «Взять в работу», in_progress → «Выполнено».
+  // Пока открыт лист результата, MainButton отправляет его («Отметить выполненной»), а своя кнопка в листе скрыта.
+  const primary: { text: string; onClick: () => void; disabled?: boolean; loading?: boolean } | null = !canAct || !active ? null
+    : doneOpen && inTg ? { text: "Отметить выполненной", onClick: markDone, disabled: doneBlocked, loading: change.isPending }
+    : t.status === "open" ? { text: "Взять в работу", onClick: () => change.mutate({ to: "in_progress" }), disabled: change.isPending, loading: change.isPending && change.variables?.to === "in_progress" }
+    : { text: "Выполнено", onClick: () => setDoneOpen(true), disabled: change.isPending };
 
   return (
     <Screen
@@ -116,16 +127,14 @@ export function TaskDetail() {
         </Section>
       )}
 
+      {/* Прямой потомок экрана: в браузере закреплённая кнопка держится внизу, если карточка длинная */}
+      {primary && <PrimaryAction {...primary} />}
+
       {canAct && (
-        <div className="mt-4 grid gap-2">
-          {t.status === "open" ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="lg" loading={change.isPending && change.variables?.to === "in_progress"} onClick={() => change.mutate({ to: "in_progress" })}>Взять в работу</Button>
-              <Button size="lg" variant="secondary" onClick={() => setDoneOpen(true)}>Выполнено</Button>
-            </div>
-          ) : t.status === "in_progress" ? (
-            <Button size="lg" block onClick={() => setDoneOpen(true)}>Выполнено</Button>
-          ) : null}
+        <div className={cx("grid gap-2", primary && !inTg ? "mt-1" : "mt-4")}>
+          {t.status === "open" && (
+            <Button size="lg" block variant="secondary" disabled={change.isPending} onClick={() => setDoneOpen(true)}>Выполнено</Button>
+          )}
           {active && (
             <Button block variant="danger" disabled={change.isPending}
               onClick={async () => { if (await tg.confirm("Отменить задачу?")) change.mutate({ to: "cancelled" }); }}>Отменить задачу</Button>
@@ -161,7 +170,7 @@ export function TaskDetail() {
             <textarea id="result" ref={resultRef} className={cx(inputCls, "min-h-28 resize-none bg-subtle!")} value={result} maxLength={2000} onChange={(e) => setResult(e.target.value)}
               placeholder={needsResult ? "Например: ФД, подтверждено на звонке" : "Например: клиент получил расчёт, ждём документы"} />
           </Field>
-          <Button block size="lg" disabled={needsResult && !result.trim()} loading={change.isPending} onClick={() => change.mutate({ to: "done", comment: result.trim() })}>Отметить выполненной</Button>
+          {!inTg && <Button block size="lg" disabled={doneBlocked} loading={change.isPending} onClick={markDone}>Отметить выполненной</Button>}
         </div>
       </Sheet>
     </Screen>

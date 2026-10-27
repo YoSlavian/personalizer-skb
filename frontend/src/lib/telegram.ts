@@ -87,6 +87,72 @@ function safe(fn: () => void): void {
   }
 }
 
+/**
+ * Системная «Назад» — стек обработчиков. Telegram вызывает все подписчики BackButton.onClick разом,
+ * поэтому к кнопке подключён один диспетчер, а он зовёт только верхний обработчик: шторка поверх экрана
+ * закрывается первой, следующее нажатие уводит с экрана. Кнопка видна, пока стек не пуст.
+ * Слои: route — вложенный маршрут (Layout), screen — шаги внутри экрана, overlay — шторки; выше слой — раньше срабатывает.
+ */
+export type BackLayer = "route" | "screen" | "overlay";
+const BACK_LAYERS: Record<BackLayer, number> = { route: 0, screen: 1, overlay: 2 };
+type BackEntry = { handler: () => void; layer: number; seq: number };
+const back = { stack: [] as BackEntry[], seq: 0, attachedTo: null as TelegramWebApp | null, hideQueued: false };
+
+function backTop(): BackEntry | undefined {
+  let top: BackEntry | undefined;
+  for (const e of back.stack) if (!top || e.layer > top.layer || (e.layer === top.layer && e.seq > top.seq)) top = e;
+  return top;
+}
+
+function onBackPressed(): void {
+  backTop()?.handler();
+}
+
+function syncBackButton(): void {
+  const wa = getWebApp();
+  const prev = back.attachedTo;
+  if (prev && prev !== wa) {
+    safe(() => prev.BackButton.offClick(onBackPressed));
+    back.attachedTo = null;
+  }
+  if (!wa || !atLeast("6.1")) return;
+  if (back.stack.length) {
+    if (back.attachedTo !== wa) {
+      safe(() => wa.BackButton.onClick(onBackPressed));
+      back.attachedTo = wa;
+    }
+    if (!wa.BackButton.isVisible) safe(() => wa.BackButton.show());
+    return;
+  }
+  if (back.attachedTo) {
+    safe(() => wa.BackButton.offClick(onBackPressed));
+    back.attachedTo = null;
+  }
+  // Прячем после коммита: при переходе между вложенными экранами старый обработчик снимается и новый ставится
+  // в одном проходе эффектов — кнопка не мигает «Закрыть»
+  if (back.hideQueued) return;
+  back.hideQueued = true;
+  queueMicrotask(() => {
+    back.hideQueued = false;
+    if (!back.stack.length) safe(() => getWebApp()?.BackButton.hide());
+  });
+}
+
+function pushBack(handler: () => void, layer: BackLayer = "screen"): () => void {
+  const entry: BackEntry = { handler, layer: BACK_LAYERS[layer], seq: ++back.seq };
+  back.stack.push(entry);
+  syncBackButton();
+  return () => {
+    const i = back.stack.indexOf(entry);
+    if (i < 0) return;
+    back.stack.splice(i, 1);
+    syncBackButton();
+  };
+}
+
+/** Подписчики SettingsButton: кнопка прячется, когда последний отписался (оболочка приложения размонтирована). */
+let settingsSubscribers = 0;
+
 export const tg = {
   initData(): string | null {
     return getWebApp()?.initData || null;
@@ -153,27 +219,39 @@ export const tg = {
     if (!wa || !atLeast("6.2")) return;
     safe(() => (on ? wa.enableClosingConfirmation() : wa.disableClosingConfirmation()));
   },
+  /**
+   * Обработчик системной «Назад» поверх стека (см. pushBack): возвращает функцию снятия.
+   * null — экрану «Назад» не нужна: свой обработчик он не ставит, видимость решают остальные записи стека.
+   */
   backButton(handler: (() => void) | null): () => void {
-    const wa = getWebApp();
-    if (!wa || !atLeast("6.1")) return () => {};
     if (!handler) {
-      safe(() => wa.BackButton.hide());
+      syncBackButton();
       return () => {};
     }
-    safe(() => {
-      wa.BackButton.onClick(handler);
-      wa.BackButton.show();
-    });
-    return () => safe(() => wa.BackButton.offClick(handler));
+    return pushBack(handler, "screen");
   },
+  /** «Назад» с явным слоем: route — маршрут (Layout), screen — шаги экрана, overlay — шторка. */
+  pushBack,
   settingsButton(handler: () => void): () => void {
     const wa = getWebApp();
-    if (!wa || !wa.SettingsButton || !atLeast("7.0")) return () => {};
+    const sb = wa?.SettingsButton;
+    if (!wa || !sb || !atLeast("7.0")) return () => {};
+    settingsSubscribers += 1;
     safe(() => {
-      wa.SettingsButton!.onClick(handler);
-      wa.SettingsButton!.show();
+      sb.onClick(handler);
+      sb.show();
     });
-    return () => safe(() => wa.SettingsButton!.offClick(handler));
+    let off = false;
+    return () => {
+      if (off) return;
+      off = true;
+      settingsSubscribers -= 1;
+      safe(() => sb.offClick(handler));
+      // Без подписчиков кнопка в меню Telegram ничего не делает — прячем; повторная подписка в том же коммите её оставит
+      queueMicrotask(() => {
+        if (settingsSubscribers === 0) safe(() => sb.hide());
+      });
+    };
   },
   mainButton(): BottomButton | null {
     return getWebApp()?.MainButton ?? null;

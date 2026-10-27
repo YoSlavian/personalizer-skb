@@ -64,7 +64,8 @@ export function PrimaryAction({
   );
 
   if (mb) return null;
-  const safe = "env(safe-area-inset-bottom, 0px) + var(--tg-content-safe-area-inset-bottom, 0px)";
+  // Общий нижний отступ (index.css): на Android WebView env() = 0, высоту полоски «домой» даёт только Telegram
+  const safe = "var(--app-bottom, 0px)";
   return (
     <div
       className="sticky z-20 -mx-4 mt-4 bg-bg px-4 pb-3 pt-3"
