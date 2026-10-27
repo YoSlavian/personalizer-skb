@@ -1,8 +1,10 @@
+import { getWebApp } from "./telegram";
+
 /** Оформление приложения: как в Telegram (по умолчанию), светлое или тёмное. Хранится на устройстве. */
 export type ThemeMode = "auto" | "light" | "dark";
 
 const KEY = "app.theme";
-const COLORS = { light: "#f1f1f4", dark: "#000000" } as const;
+const COLORS = { light: "#ececec", dark: "#000000" } as const;
 
 export function getThemeMode(): ThemeMode {
   try {
@@ -17,15 +19,26 @@ export function applyThemeMode(mode: ThemeMode = getThemeMode()): void {
   const root = document.documentElement;
   if (mode === "auto") root.removeAttribute("data-mode");
   else root.setAttribute("data-mode", mode);
-  // Шапка и фон Telegram под выбранную тему (если приложение открыто в Telegram)
-  const wa = (window as unknown as { Telegram?: { WebApp?: { setHeaderColor?: (c: string) => void; setBackgroundColor?: (c: string) => void } } }).Telegram?.WebApp;
-  if (mode !== "auto" && wa) {
+  // Шапка и фон Telegram под выбранную тему — только внутри Telegram (есть initData) и на клиентах 6.1+:
+  // в браузере и на старых версиях методы лишь пишут в консоль «not supported».
+  const wa = getWebApp();
+  if (!wa) return;
+  const supports = (v: string) => {
     try {
-      wa.setHeaderColor?.(COLORS[mode]);
-      wa.setBackgroundColor?.(COLORS[mode]);
+      return wa.isVersionAtLeast(v);
     } catch {
-      /* старые клиенты Telegram */
+      return false;
     }
+  };
+  if (!supports("6.1")) return;
+  const dark = mode === "auto" ? wa.colorScheme === "dark" : mode === "dark";
+  const color = COLORS[dark ? "dark" : "light"];
+  try {
+    wa.setHeaderColor(color);
+    wa.setBackgroundColor(color);
+    if (supports("7.10")) wa.setBottomBarColor?.(color);
+  } catch {
+    /* старые клиенты Telegram */
   }
 }
 

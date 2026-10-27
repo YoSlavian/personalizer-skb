@@ -3,11 +3,41 @@ import { useLatest } from "../lib/hooks";
 import { tg } from "../lib/telegram";
 import { Button } from "./ui";
 
+/** Высота нижней панели вкладок (Layout): кнопка в браузере закрепляется над ней, а не под ней. */
+const TAB_BAR = "60px";
+
 /**
- * Главное действие экрана. В Telegram — нативная MainButton (внизу окна), в браузере — закреплённая кнопка.
- * Повторные нажатия игнорируются, пока действие выполняется или недоступно.
+ * Окно после принятого нажатия, в которое повторные нажатия отбрасываются. MainButton стоит на месте, а её действие
+ * меняется за несколько миллисекунд: без окна второй тап двойного нажатия выполнил бы уже следующее действие
+ * (отправил заявку, минуя форму; закрыл задачу без результата). Общее для всех экранов.
  */
-export function PrimaryAction({ text, onClick, disabled, loading }: { text: string; onClick: () => void; disabled?: boolean; loading?: boolean }) {
+const REPEAT_GUARD_MS = 500;
+let lastAcceptedAt = -Infinity;
+
+function acceptPress(): boolean {
+  const now = Date.now();
+  if (now - lastAcceptedAt < REPEAT_GUARD_MS) return false;
+  lastAcceptedAt = now;
+  return true;
+}
+
+/**
+ * Главное действие экрана. В Telegram — нативная MainButton (внизу окна), в браузере — закреплённая красная кнопка.
+ * Повторные нажатия игнорируются, пока действие выполняется или недоступно, и в течение REPEAT_GUARD_MS после принятого.
+ */
+export function PrimaryAction({
+  text,
+  onClick,
+  disabled,
+  loading,
+  aboveTabBar = true,
+}: {
+  text: string;
+  onClick: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  aboveTabBar?: boolean;
+}) {
   const mb = tg.mainButton();
   const cb = useLatest({ onClick, disabled, loading });
 
@@ -16,6 +46,7 @@ export function PrimaryAction({ text, onClick, disabled, loading }: { text: stri
     const handler = () => {
       const s = cb.current;
       if (s.disabled || s.loading) return;
+      if (!acceptPress()) return;
       tg.haptic("light");
       s.onClick();
     };
@@ -28,9 +59,11 @@ export function PrimaryAction({ text, onClick, disabled, loading }: { text: stri
   useEffect(() => {
     if (!mb) return;
     try {
-      mb.setParams({ text, is_visible: true, is_active: !disabled && !loading, color: "#EF3124", text_color: "#FFFFFF" });
+      // Сначала прогресс, потом параметры: hideProgress() в SDK включает неактивную кнопку (isActive = true),
+      // поэтому последним в Telegram должно уйти is_active из setParams. Без прогресса hideProgress не зовём вовсе.
       if (loading) mb.showProgress(false);
-      else mb.hideProgress();
+      else if (mb.isProgressVisible) mb.hideProgress();
+      mb.setParams({ text, is_visible: true, is_active: !disabled && !loading, color: "#EF3124", text_color: "#FFFFFF" });
     } catch {
       /* старый клиент — без прогресса */
     }
@@ -39,8 +72,9 @@ export function PrimaryAction({ text, onClick, disabled, loading }: { text: stri
   useEffect(
     () => () => {
       try {
-        mb?.hideProgress();
+        // Сначала прячем: у скрытой кнопки hideProgress() ничего не отправляет в Telegram (без мигания активной)
         mb?.hide();
+        if (mb?.isProgressVisible) mb.hideProgress();
       } catch {
         /* ignore */
       }
@@ -49,9 +83,18 @@ export function PrimaryAction({ text, onClick, disabled, loading }: { text: stri
   );
 
   if (mb) return null;
+  // Общий нижний отступ (index.css): на Android WebView env() = 0, высоту полоски «домой» даёт только Telegram
+  const safe = "var(--app-bottom, 0px)";
+  const press = () => {
+    if (disabled || loading || !acceptPress()) return;
+    onClick();
+  };
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 mt-4 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-safe pt-3">
-      <Button block size="lg" onClick={onClick} disabled={disabled} loading={loading} className="mb-3">
+    <div
+      className="sticky z-20 -mx-4 mt-4 bg-bg px-4 pb-3 pt-3"
+      style={{ bottom: aboveTabBar ? `calc(${TAB_BAR} + ${safe})` : `calc(${safe})` }}
+    >
+      <Button block size="lg" onClick={press} disabled={disabled} loading={loading}>
         {text}
       </Button>
     </div>

@@ -1,113 +1,148 @@
-import { ArrowRight, ChevronDown, EyeOff } from "lucide-react";
+import { EyeOff, Info } from "./icons";
 import { type ReactNode, useState } from "react";
 import type { VisualData } from "../lib/types";
 import { cx } from "./ui";
 
-const BG: Record<string, string> = {
-  season: "#EF3124",
-  growth: "#2B72FE",
-  truck: "#0B0B0B",
-  invoice: "#6F2AFF",
-  fx: "#0B0B0B",
-  deposit: "#2B72FE",
-  sync: "#6F2AFF",
-  group: "#EF3124",
-};
-const MONTHS = ["Я", "Ф", "М", "А", "М", "И", "И", "А", "С", "О", "Н", "Д"];
+/**
+ * Креатив предложения в стиле «Альфа-Будущее»: чёрная (графитовая в тёмной теме) или красная карточка,
+ * лайм — только метка «для вас» и пик на графике. Визуал собирается из данных клиента (обороты, группа, событие).
+ */
+type Tone = "creative" | "red";
+// Красный — для «групповых» и «развивающих» сюжетов, чтобы лента предложений не была однотонной
+const RED_TYPES = new Set(["group", "invoice", "growth"]);
+const toneOf = (type: string): Tone => (RED_TYPES.has(type) ? "red" : "creative");
 
-/** Визуал баннера, собранный из данных клиента (визуал по ОКВЭД, обороты, структура группы). Перенесён из прототипа команды. */
-export function OfferVisual({ data, className = "" }: { data: VisualData; className?: string }) {
+// Палитра графики под фон: на чёрном акцент — лайм, на красном — белый и чёрный
+const PAL = {
+  creative: { accent: "#A9F000", accentInk: "#0B0B0B", strong: "#FFFFFF", strongInk: "#0B0B0B", muted: "rgba(255,255,255,.22)", line: "rgba(255,255,255,.55)" },
+  red: { accent: "#FFFFFF", accentInk: "#0B0B0B", strong: "#0B0B0B", strongInk: "#FFFFFF", muted: "rgba(255,255,255,.32)", line: "rgba(255,255,255,.7)" },
+} as const;
+
+function Graphic({ data, tone }: { data: VisualData; tone: Tone }) {
+  const c = PAL[tone];
   const type = data.type;
-  let g: ReactNode = null;
   if (type === "season") {
     const vals = data.months ?? [0.3, 0.3, 0.5, 0.8, 0.9, 0.6, 0.4, 0.4, 0.7, 0.9, 0.5, 0.3];
     const peak = data.peak_index ?? 4;
-    g = vals.map((v, i) => {
-      const h = Math.max(8, v * 100);
-      const x = 8 + i * 27;
-      const near = i === (peak + 11) % 12 || i === (peak + 10) % 12;
-      return (
-        <g key={i}>
-          <rect x={x} y={112 - h} width={19} height={h} rx={5} fill={i === peak ? "#A9F000" : near ? "#fff" : "rgba(255,255,255,.45)"} />
-          <text x={x + 9.5} y={132} fill="#fff" fontSize={12} textAnchor="middle">{MONTHS[i]}</text>
-        </g>
-      );
-    });
-  } else if (type === "group") {
+    return (
+      <div className="flex h-full items-end gap-[3px]">
+        {vals.map((v, i) => (
+          <div key={i} className="min-w-0 flex-1 rounded-[3px]" style={{ height: `${Math.max(10, v * 100)}%`, background: i === peak ? c.accent : c.muted }} />
+        ))}
+      </div>
+    );
+  }
+  let g: ReactNode;
+  if (type === "group") {
     const ents = data.entities ?? [];
-    const cx = [60, 170, 275, 320];
+    const xs = [40, 120, 196];
     g = (
       <>
-        <path d="M90 75 H140 M200 75 H245" stroke="#fff" strokeWidth={3} strokeDasharray="6 6" />
-        {ents.slice(0, 3).map((e, i) => (
-          <g key={i}>
-            <circle cx={cx[i]} cy={75} r={18 + e.share * 0.45} fill={e.balance === "credit" ? "#0B0B0B" : "#A9F000"} />
-            <text x={cx[i]} y={80} textAnchor="middle" fontSize={14} fontWeight={700} fill={e.balance === "credit" ? "#fff" : "#000"}>{e.share}%</text>
-          </g>
-        ))}
+        <path d="M58 50 H100 M140 50 H178" stroke={c.line} strokeWidth={3} strokeDasharray="5 5" />
+        {ents.slice(0, 3).map((e, i) => {
+          const credit = e.balance === "credit";
+          return (
+            <g key={i}>
+              <circle cx={xs[i]} cy={50} r={14 + e.share * 0.3} fill={credit ? c.strong : "#A9F000"} />
+              <text x={xs[i]} y={55} textAnchor="middle" fontSize={13} fontWeight={700} fill={credit ? c.strongInk : "#0B0B0B"}>{e.share}%</text>
+            </g>
+          );
+        })}
       </>
     );
   } else if (type === "fx") {
     g = (
       <>
-        <circle cx={100} cy={75} r={44} fill="#EF3124" />
-        <text x={100} y={89} textAnchor="middle" fontSize={42} fontWeight={700} fill="#fff">₽</text>
-        <circle cx={240} cy={75} r={44} fill="#A9F000" />
-        <text x={240} y={89} textAnchor="middle" fontSize={42} fontWeight={700} fill="#000">$</text>
-        <path d="M148 62 H192 l-10 -8 M192 88 H148 l10 8" stroke="#fff" strokeWidth={4} fill="none" />
+        <circle cx={58} cy={50} r={34} fill={c.muted} />
+        <text x={58} y={62} textAnchor="middle" fontSize={32} fontWeight={700} fill="#fff">₽</text>
+        <circle cx={172} cy={50} r={34} fill={c.accent} />
+        <text x={172} y={62} textAnchor="middle" fontSize={32} fontWeight={700} fill={c.accentInk}>$</text>
+        <path d="M100 40 H130 l-8 -7 M130 60 H100 l8 7" stroke="#fff" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </>
     );
   } else if (type === "deposit") {
     g = (
       <>
-        <polyline points="10,120 70,104 130,98 190,80 250,62 320,36" fill="none" stroke="#A9F000" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx={320} cy={36} r={10} fill="#fff" />
+        <polyline points="8,88 60,76 104,72 148,56 190,40 222,18" fill="none" stroke={c.accent} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx={222} cy={18} r={8} fill="#fff" />
       </>
     );
   } else if (type === "sync") {
     g = (
       <>
-        <rect x={20} y={40} width={110} height={70} rx={12} fill="#fff" />
-        <text x={75} y={81} textAnchor="middle" fontSize={17} fontWeight={700} fill="#0B0B0B">Банк</text>
-        <rect x={210} y={40} width={110} height={70} rx={12} fill="#A9F000" />
-        <text x={265} y={81} textAnchor="middle" fontSize={17} fontWeight={700} fill="#0B0B0B">Учёт</text>
-        <path d="M140 64 H200 M200 86 H140" stroke="#fff" strokeWidth={4} />
+        <rect x={6} y={24} width={84} height={52} rx={12} fill={c.muted} />
+        <text x={48} y={56} textAnchor="middle" fontSize={15} fontWeight={700} fill="#fff">Банк</text>
+        <rect x={140} y={24} width={84} height={52} rx={12} fill={c.accent} />
+        <text x={182} y={56} textAnchor="middle" fontSize={15} fontWeight={700} fill={c.accentInk}>Учёт</text>
+        <path d="M98 42 H132 l-7 -6 M132 58 H98 l7 6" stroke="#fff" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </>
     );
   } else if (type === "truck") {
     g = (
       <>
-        <rect x={30} y={44} width={170} height={62} rx={8} fill="#fff" />
-        <rect x={206} y={62} width={80} height={44} rx={8} fill="#A9F000" />
-        <circle cx={75} cy={112} r={15} fill="#EF3124" />
-        <circle cx={245} cy={112} r={15} fill="#EF3124" />
+        <rect x={16} y={26} width={126} height={48} rx={8} fill={c.muted} />
+        <rect x={148} y={40} width={62} height={34} rx={8} fill={c.accent} />
+        <circle cx={50} cy={80} r={11} fill="#fff" />
+        <circle cx={178} cy={80} r={11} fill="#fff" />
       </>
     );
   } else if (type === "invoice") {
     g = (
       <>
-        <rect x={40} y={22} width={110} height={106} rx={10} fill="#fff" />
-        <path d="M58 50 H132 M58 72 H132 M58 94 H110" stroke="#ccc" strokeWidth={6} />
-        <circle cx={245} cy={75} r={44} fill="#A9F000" />
-        <text x={245} y={82} textAnchor="middle" fontSize={18} fontWeight={700} fill="#0B0B0B">сразу</text>
+        <rect x={20} y={8} width={84} height={84} rx={10} fill={c.muted} />
+        <path d="M36 32 H88 M36 50 H88 M36 68 H72" stroke="#fff" strokeWidth={5} strokeLinecap="round" />
+        <circle cx={172} cy={50} r={36} fill={c.strong} />
+        <text x={172} y={56} textAnchor="middle" fontSize={15} fontWeight={700} fill={c.strongInk}>сразу</text>
       </>
     );
   } else {
-    g = <polyline points="10,120 90,96 170,78 250,52 320,28" fill="none" stroke="#A9F000" strokeWidth={7} strokeLinecap="round" />;
+    g = <polyline points="8,88 70,70 130,56 190,34 222,14" fill="none" stroke={c.accent} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />;
   }
   return (
-    <div className={cx("relative overflow-hidden text-white", className)} style={{ background: BG[type] ?? "#EF3124" }} aria-hidden>
-      <div className="absolute left-4 top-3 z-10">
-        <div className="font-display text-[26px] leading-none">{data.big}</div>
-        <div className="mt-1 text-[12px] opacity-90">{data.small}</div>
-        {data.note && <div className="mt-0.5 text-[11px] opacity-70">{data.note}</div>}
+    <svg viewBox="0 0 230 100" preserveAspectRatio="xMaxYMax meet" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+      {g}
+    </svg>
+  );
+}
+
+/** Визуал баннера: большое число + подпись слева, график по данным клиента справа. Часть карточки, без своей подложки. */
+export function OfferVisual({ data, className = "", tone }: { data: VisualData; className?: string; tone?: Tone }) {
+  const t = tone ?? toneOf(data.type);
+  const caption = [data.small, data.note].filter(Boolean).join(" · ");
+  const len = data.big?.length ?? 0;
+  // Styrene A широкий: длинные слова уменьшаем, чтобы не вылезали из колонки. «Без ручного» на 22 px — 148 px, одна строка.
+  const size = len <= 6 ? "text-[40px]" : len <= 8 ? "text-[32px]" : len <= 10 ? "text-[28px]" : "text-[22px]";
+  const tier = len <= 6 ? 40 : len <= 8 ? 32 : len <= 10 ? 28 : 22;
+  // На узких экранах (360 px) кегль ещё и ограничен шириной колонки: ≈0,68 em на знак. Без поддержки cqw остаётся класс size.
+  const fit = len ? { fontSize: `min(${tier}px, ${(100 / (len * 0.68)).toFixed(2)}cqw)` } : undefined;
+  return (
+    <div className={cx("flex items-end gap-3", className)} aria-hidden>
+      <div className="@container min-w-0 flex-1">
+        {data.big && (
+          <div className={cx("font-display leading-[0.95] tracking-[-0.02em] tabular", size, t === "creative" ? "text-lime" : "text-white")} style={fit}>
+            {data.big}
+          </div>
+        )}
+        {caption && <div className={cx("mt-1.5 text-[12px] leading-snug", t === "creative" ? "text-white/65" : "text-white/80")}>{caption}</div>}
       </div>
-      <svg viewBox="0 0 340 150" preserveAspectRatio="xMaxYMax meet" xmlns="http://www.w3.org/2000/svg"
-        className={cx("absolute bottom-2 right-2", type === "season" ? "h-[78%] w-[96%]" : "h-[66%] w-[62%]")}>
-        {g}
-      </svg>
+      <div className="h-[84px] w-[42%] max-w-[200px] shrink-0">
+        <Graphic data={data} tone={t} />
+      </div>
     </div>
   );
+}
+
+const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+/**
+ * Текст под визуалом без повтора крупного числа: «До пика закупок 5 нед. Подберём лимит…» при визуале «5 нед. — до пика закупок»
+ * превращается в «Подберём лимит…». Первое предложение убираем, только если оно содержит число визуала и после него есть текст.
+ */
+function bodyWithoutHero(body: string, big?: string): string {
+  if (!big) return body;
+  const m = /^(.+?[.!?])\s+(?=[«"A-ZА-ЯЁ])/.exec(body);
+  if (!m) return body;
+  const rest = body.slice(m[0].length).trim();
+  return rest && norm(m[1]).includes(norm(big)) ? rest : body;
 }
 
 export function OfferCard({
@@ -121,6 +156,7 @@ export function OfferCard({
   onHide,
   ctaBusy,
   footer,
+  tag = "для вас",
 }: {
   kicker: string;
   headline: string;
@@ -132,38 +168,56 @@ export function OfferCard({
   onHide?: () => void;
   ctaBusy?: boolean;
   footer?: ReactNode;
+  /** Метка в углу креатива; null — без метки */
+  tag?: string | null;
 }) {
   const [showWhy, setShowWhy] = useState(false);
+  const tone = toneOf(visual.type);
+  const red = tone === "red";
+  const ctaCls = cx(
+    "mt-5 flex h-12 w-full items-center justify-center rounded-full px-5 text-[15px] font-medium",
+    red ? "bg-white text-ink" : "bg-brand text-white",
+  );
   return (
-    <article className="card overflow-hidden animate-fade-up">
-      <OfferVisual data={visual} className="h-[150px]" />
-      <div className="p-4">
-        <div className="text-[12px] font-medium uppercase tracking-wide text-brand">{kicker}</div>
-        <h3 className="mt-1 font-display text-[21px] leading-[1.15]">{headline}</h3>
-        <p className="mt-2 text-[15px] text-hint">{body}</p>
-        {onCta && (
-          <button type="button" onClick={onCta} disabled={ctaBusy}
-            className="mt-4 inline-flex h-11 items-center gap-2 rounded-2xl bg-brand px-4 font-medium text-white active:bg-brand-press disabled:opacity-60">
-            {cta} <ArrowRight className="size-4" />
-          </button>
-        )}
-        {(why || onHide) && (
-          <div className="mt-3 flex items-center gap-4 text-[13px]">
-            {why && (
-              <button type="button" onClick={() => setShowWhy((v) => !v)} aria-expanded={showWhy} className="inline-flex items-center gap-1 text-hint">
-                Почему я это вижу <ChevronDown className={cx("size-3.5 transition-transform", showWhy && "rotate-180")} />
-              </button>
-            )}
-            {onHide && (
-              <button type="button" onClick={onHide} className="ml-auto inline-flex items-center gap-1 text-hint">
-                <EyeOff className="size-3.5" /> Не интересно
-              </button>
-            )}
-          </div>
-        )}
-        {showWhy && why && <p className="mt-2 rounded-xl bg-subtle px-3 py-2 text-[13px] animate-fade">{why}</p>}
-        {footer}
+    <article className={cx("overflow-hidden rounded-[24px] p-5 text-white animate-fade-up", red ? "bg-brand" : "bg-creative")}>
+      <div className="flex items-center justify-between gap-3">
+        <span className={cx("line-clamp-2 min-w-0 text-[12px] font-medium leading-snug", red ? "text-white/80" : "text-white/65")}>{kicker}</span>
+        {tag && <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-lime px-2.5 text-[12px] font-medium text-ink">{tag}</span>}
       </div>
+      <h3 className="mt-2.5 font-display text-[22px] uppercase leading-[1.04] tracking-[-0.01em] [overflow-wrap:anywhere]">{headline}</h3>
+      <OfferVisual data={visual} tone={tone} className="mt-4" />
+      <p className={cx("mt-3.5 text-[15px] leading-snug", red ? "text-white/90" : "text-white/85")}>{bodyWithoutHero(body, visual.big)}</p>
+      {onCta ? (
+        <button type="button" onClick={onCta} disabled={ctaBusy} aria-busy={ctaBusy || undefined}
+          className={cx(ctaCls, "transition-transform active:scale-[0.97] disabled:opacity-60", red ? "active:bg-white/90" : "active:bg-brand-press")}>
+          {cta}
+        </button>
+      ) : (
+        // Предпросмотр (симулятор, карточка клиента): кнопка видна как у клиента, но не нажимается
+        <div className={ctaCls}>{cta}</div>
+      )}
+      {(why || onHide) && (
+        <div className="-mb-2 mt-1 flex items-center justify-between gap-3 text-[13px]">
+          {why ? (
+            <button type="button" onClick={() => setShowWhy((v) => !v)} aria-expanded={showWhy}
+              className={cx("-ml-1 inline-flex h-11 items-center gap-1.5 px-1 transition-colors", red ? "text-white/80 active:text-white" : "text-white/70 active:text-white")}>
+              <Info className="size-4" aria-hidden />
+              Почему я это вижу
+            </button>
+          ) : <span />}
+          {onHide && (
+            <button type="button" onClick={onHide}
+              className={cx("-mr-1 inline-flex h-11 items-center gap-1.5 px-1 transition-colors", red ? "text-white/80 active:text-white" : "text-white/70 active:text-white")}>
+              <EyeOff className="size-4" aria-hidden />
+              Не интересно
+            </button>
+          )}
+        </div>
+      )}
+      {showWhy && why && (
+        <p className={cx("mb-1 mt-2 rounded-[14px] px-3.5 py-2.5 text-[13px] leading-snug animate-fade", red ? "bg-black/15 text-white" : "bg-white/10 text-white/85")}>{why}</p>
+      )}
+      {footer}
     </article>
   );
 }
