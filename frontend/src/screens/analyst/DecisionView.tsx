@@ -28,16 +28,21 @@ export const score = (v: number) => {
   return s.replace(".", ",");
 };
 const productsWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "продукта" : "продуктов");
-/** Лимит email из активных правил (frequency.low_email, сейчас 60 дней) — общий для всех получателей */
+/** Лимит email из правил v2 (frequency.low_email = 60, общий для всех получателей). Число зашито: правила до защиты не меняем */
 const EMAIL_LABEL = "Email · не чаще 1 раза в 60 дн.";
+const isBoss = (label: string) => label.startsWith("Альфа-Босс");
 /**
- * Каналы для показа: Альфа-Босс первым (основной канал к ЛПР), у email — его лимит.
- * Порядок и подписи в ответе движка не трогаем: их сверяет тест паритета с прототипом команды.
+ * Подписи каналов для показа: Альфа-Босс первым (основной канал к ЛПР), у email — его лимит,
+ * если строка частоты рядом его ещё не называет. Ответ движка не трогаем: порядок и подписи сверяет тест паритета.
  */
+export function displayChannelLabels(labels: string[], frequency = ""): string[] {
+  const withLimit = !/email/i.test(frequency);
+  return [...labels.filter(isBoss), ...labels.filter((l) => !isBoss(l))]
+    .map((l) => (withLimit && l === "Email" ? EMAIL_LABEL : l));
+}
 export function displayChannels(r: DecisionResult): DecisionResult["channels"] {
-  const boss = r.channels.filter((c) => c.code === "boss");
-  const rest = r.channels.filter((c) => c.code !== "boss");
-  return [...boss, ...rest].map((c) => (c.code === "email" ? { ...c, label: EMAIL_LABEL } : c));
+  const labels = displayChannelLabels(r.channels.map((c) => c.label), r.frequency);
+  return labels.map((label) => ({ code: r.channels.find((c) => c.label === label)?.code ?? "email", label }));
 }
 export const channelNames = (r: DecisionResult) => displayChannels(r).map((c) => c.label.split(":")[0].trim());
 
@@ -52,7 +57,7 @@ export function useCtaPreview() {
     toast.show(
       CALCULABLE.has(offer.product_code)
         ? `Превью для клиента: «${offer.cta}» у него сразу откроет расчёт`
-        : `Превью для клиента: «${offer.cta}» у него откроет заявку на подключение`,
+        : `Превью для клиента: «${offer.cta}» у него откроет короткую заявку для менеджера`,
       "info",
     );
   };

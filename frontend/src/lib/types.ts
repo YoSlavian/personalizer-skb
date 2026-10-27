@@ -18,6 +18,8 @@ export interface Me {
   organizations: { id: number; contact_id: number }[];
   csrf_token: string | null;
   demo_mode: boolean;
+  /** Публичное демо (прод + DEMO_MODE): часть действий доступна только в режиме предпросмотра */
+  public_demo?: boolean;
   bot_username: string | null;
   token?: string;
 }

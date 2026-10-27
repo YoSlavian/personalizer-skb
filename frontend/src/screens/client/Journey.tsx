@@ -149,9 +149,10 @@ export function Journey() {
   const initialProduct = params.get("product") ?? "working";
 
   const [product, setProduct] = useState(initialProduct);
-  // Персональное предложение уже выбрало продукт — сразу расчёт; витрина остаётся шагом «Назад» и для сравнения
+  // Персональное предложение с главной уже выбрало продукт — сразу расчёт; витрина остаётся шагом «Назад» и для сравнения.
+  // Ссылки из бота и push несут только offer, без product: для них витрина, чтобы не открыть расчёт чужого продукта
   const [step, setStep] = useState<Step>(
-    draftId ? "form" : !CALCULABLE.has(initialProduct) ? "form" : offerId ? "calc" : "showcase",
+    draftId ? "form" : !CALCULABLE.has(initialProduct) ? "form" : offerId && params.has("product") ? "calc" : "showcase",
   );
   const [session, setSession] = useState<JourneySession | null>(null);
   const [startError, setStartError] = useState<unknown>(null);
@@ -240,7 +241,8 @@ export function Journey() {
     bump((x) => x + 1);
   };
   useEffect(() => {
-    if (step !== "calc" || !session) return;
+    // Пришёл из предложения сразу в расчёт — паузу считаем после первого действия, а не с открытия экрана
+    if (step !== "calc" || !session || (offerId && touch.current === 0)) return;
     const t = window.setTimeout(() => {
       if (!idleSent.current) {
         idleSent.current = true;

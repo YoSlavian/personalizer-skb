@@ -224,7 +224,7 @@ export function Simulator() {
     placeholderData: keepPreviousData,
   });
 
-  const [log, setLog] = useStoredState<LogEntry[]>("sim.log", []);
+  const [log, setLog] = useStoredState<LogEntry[]>("sim.log.v2", []);
   const pending = useRef<string | null>(null);
   const [tick, setTick] = useState(0); // каждое действие пользователя, даже если профиль не изменился
   const set = (patch: Partial<Profile>) => {

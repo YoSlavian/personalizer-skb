@@ -158,9 +158,10 @@ async def overview(session: AsyncSession, user: User, days: int = 90) -> dict[st
             if screen:
                 reached[s_id].add(screen)
     journey = {}
+    stale_before = now - timedelta(hours=1)
     for flag, label in ((True, "adaptive"), (False, "static")):
-        # Незавершённые сессии (outcome open) не считаем: их исход ещё неизвестен, иначе они занижают долю дошедших
-        ss = [s for s in sessions if s.adapt == flag and s.outcome != "open"]
+        # Свежие незавершённые сессии не считаем: исход ещё неизвестен. Открытая дольше часа без событий — брошенная
+        ss = [s for s in sessions if s.adapt == flag and (s.outcome != "open" or s.last_event_at < stale_before)]
         applied = [s for s in ss if s.outcome == "applied"]
         calc = [s for s in ss if "calc" in reached[s.id] or s.recalcs > 0]
         # Drop-off «калькулятор → заявка»: дошёл до калькулятора, но заявку не отправил

@@ -70,7 +70,7 @@ function CrChart({ data }: { data: Analytics["weekly"] }) {
         <span>макс. {pct(max)}</span>
         <span>{pts.length} нед.</span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 h-32 w-full overflow-visible" role="img" aria-label="CR в заявку по неделям: тест и контроль">
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 h-32 w-full overflow-visible" role="img" aria-label="CR показ → заявка по неделям: тест и контроль">
         {[0.25, 0.5, 0.75].map((f) => (
           <line key={f} x1={P} x2={W - P} y1={y(max * f)} y2={y(max * f)} stroke="var(--separator)" strokeWidth={1} />
         ))}
@@ -121,14 +121,14 @@ export function AnalystHome() {
       {a.isLoading && <PilotSkeleton />}
       {a.data && t && c && (
         <div className={cx("animate-fade transition-opacity", a.isPlaceholderData && "opacity-60")} aria-busy={a.isPlaceholderData || undefined}>
-          <section className="mt-4 rounded-[24px] bg-creative p-5 text-white" aria-label="Главная метрика">
+          <section className="mt-4 rounded-[24px] bg-creative p-5 text-white" aria-label="Демо-расчёт CR показ → заявка">
             <div className="text-[13px] text-white/60">CR показ → заявка · демо-расчёт</div>
             <div className="mt-2.5 flex items-center gap-2.5">
-              <span className="font-display text-[44px] leading-[0.9] tabular">{pct(t.cr)}</span>
+              <span className="font-display text-[44px] leading-[0.9] tabular">{pct(t.cr, 2)}</span>
               <DeltaPill d={deltaOf(a.data.uplift.cr)} onDark />
             </div>
             <div className="mt-3 text-[13px] text-white/75">
-              контроль {pct(c.cr)} · {hasP ? <>z-тест p = {pText} · {p < 0.05 ? "значимо" : "не значимо"}</> : "недостаточно данных для z-теста"}
+              контроль {pct(c.cr, 2)} · {hasP ? <>z-тест p = {pText} · {p < 0.05 ? "значимо" : "не значимо"}</> : "недостаточно данных для z-теста"}
             </div>
             <div className="mt-1 text-[12px] text-white/50">Вывод — только по окончании окна пилота на заранее рассчитанной выборке.</div>
           </section>
@@ -147,7 +147,7 @@ export function AnalystHome() {
             <Kpi label="Компаний" value={t.organizations} control={`контроль ${c.organizations}`} />
           </div>
 
-          <Section title="CR в заявку по неделям">
+          <Section title="CR показ → заявка по неделям">
             <Card><CrChart data={a.data.weekly} /></Card>
           </Section>
 
