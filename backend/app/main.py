@@ -202,7 +202,8 @@ def create_app() -> FastAPI:
             candidate = (dist / path).resolve()
             if path and candidate.is_file() and dist.resolve() in candidate.parents:
                 return FileResponse(candidate)
-            return FileResponse(dist / "index.html", headers={"Cache-Control": "no-cache"})
+            # no-store: Telegram и браузеры не держат старую страницу, ссылающуюся на удалённые файлы сборки
+            return FileResponse(dist / "index.html", headers={"Cache-Control": "no-store"})
 
     return app
 
